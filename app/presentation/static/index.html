@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shadowing Studio</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <p class="eyebrow">English Listening Practice</p>
+        <h1>Shadowing Studio</h1>
+        <p class="lead">
+          Tạo nhanh bài tập điền từ từ video YouTube và luyện theo từng câu subtitle.
+        </p>
+      </div>
+    </header>
+
+    <main class="container layout">
+      <section class="panel" aria-labelledby="generator-title">
+        <h2 id="generator-title">Tạo bài tập</h2>
+        <form id="lesson-form" class="stack">
+          <div class="field">
+            <label for="video-url">YouTube URL</label>
+            <input
+              id="video-url"
+              name="video-url"
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="difficulty">Độ khó</label>
+            <select id="difficulty" name="difficulty">
+              <option value="1">1 - Cơ bản</option>
+              <option value="2">2 - Dễ</option>
+              <option value="3" selected>3 - Trung bình</option>
+              <option value="4">4 - Khó</option>
+              <option value="5">5 - Nâng cao</option>
+            </select>
+          </div>
+
+          <div class="action-row">
+            <button type="submit">Tạo bài tập</button>
+            <button id="start-session-button" type="button" class="button-secondary" disabled>
+              Bắt đầu luyện tập
+            </button>
+          </div>
+        </form>
+
+        <div class="meta-row">
+          <p id="status-message" class="status" role="status" aria-live="polite">
+            Ứng dụng đang sẵn sàng.
+          </p>
+          <p id="state-badge" class="state-pill" aria-live="polite">IDLE</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="video-title">
+        <div class="section-heading">
+          <h2 id="video-title">Video</h2>
+          <p class="muted">Video sẽ tự dừng ở cuối mỗi câu để bạn nhập đáp án.</p>
+        </div>
+        <div class="video-shell">
+          <div id="video-player" class="player-host" aria-label="YouTube player"></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="exercise-title">
+        <div class="section-heading">
+          <h2 id="exercise-title">Khu vực tương tác</h2>
+          <p class="muted">
+            Lắng nghe từng đoạn, nhập lại câu bạn nghe được, rồi hệ thống sẽ chấm điểm và chạy tiếp.
+          </p>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <p>Chưa có bài tập nào. Hãy nhập URL video và tạo bài tập để bắt đầu.</p>
+        </div>
+
+        <section id="exercise-workspace" class="workspace stack" hidden aria-live="polite">
+          <div class="workspace-header">
+            <p id="progress-text" class="progress-text">Đoạn 1 / 1</p>
+            <button
+              id="replay-segment-button"
+              type="button"
+              class="button-secondary"
+              disabled
+            >
+              Nghe lại đoạn này
+            </button>
+          </div>
+
+          <article class="prompt-card">
+            <p class="prompt-label">Câu hiện tại</p>
+            <p id="prompt-text" class="blanked-text">Nội dung câu hỏi sẽ xuất hiện tại đây.</p>
+          </article>
+
+          <form id="answer-form" class="stack" hidden>
+            <div class="field">
+              <label for="answer-input">Câu trả lời của bạn</label>
+              <textarea
+                id="answer-input"
+                name="answer-input"
+                placeholder="Nhập lại câu bạn vừa nghe được..."
+              ></textarea>
+            </div>
+            <button id="submit-answer-button" type="submit">Gửi đáp án</button>
+          </form>
+
+          <aside id="feedback-panel" class="feedback-panel" hidden>
+            <p id="feedback-label" class="feedback-label">Đúng</p>
+            <p id="feedback-score" class="feedback-score"></p>
+            <p id="feedback-answer" class="feedback-answer"></p>
+          </aside>
+        </section>
+
+        <section id="results-panel" class="results" hidden aria-labelledby="results-title">
+          <h3 id="results-title">Tổng kết</h3>
+          <p id="average-score" class="score"></p>
+          <div id="results-list" class="results-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/static/js/app.js"></script>
+  </body>
+</html>

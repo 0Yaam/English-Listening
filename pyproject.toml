@@ -1,0 +1,25 @@
+[project]
+name = "shadowing-backend"
+version = "0.1.0"
+description = "3-tier FastAPI backend skeleton for an English listening practice app."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "youtube-transcript-api",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
