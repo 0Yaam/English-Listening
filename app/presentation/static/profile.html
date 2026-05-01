@@ -10,10 +10,18 @@
     <div class="profile-shell">
       <div class="profile-grid">
         <aside class="profile-sidebar" aria-labelledby="profile-name">
-          <div class="profile-avatar" aria-hidden="true">LT</div>
-          <h1 id="profile-name" class="profile-name">Linh Tran</h1>
-          <p class="profile-email">linh.shadowing@example.com</p>
-          <p class="profile-joined">Joined on 12 Sep 2025</p>
+          <div id="profile-avatar" class="profile-avatar" aria-hidden="true">--</div>
+          <h1 id="profile-name" class="profile-name">Loading user</h1>
+          <p id="profile-email" class="profile-email">Loading email</p>
+          <p id="profile-joined" class="profile-joined">Loading join date</p>
+          <div class="profile-auth-actions">
+            <a href="/login" class="button-text profile-auth-link" hidden id="profile-login-link">
+              Sign in
+            </a>
+            <button id="sign-out-button" type="button" class="button-text profile-signout-button">
+              Sign out
+            </button>
+          </div>
 
           <hr class="profile-divider" />
 
@@ -22,15 +30,23 @@
             <dl class="metrics-list">
               <div class="metric-item">
                 <dt>Total Sessions</dt>
-                <dd>48</dd>
+                <dd id="metric-total-sessions">--</dd>
               </div>
               <div class="metric-item">
                 <dt>Saved Transcripts</dt>
-                <dd>21</dd>
+                <dd id="metric-saved-transcripts">--</dd>
               </div>
               <div class="metric-item">
                 <dt>Average Accuracy</dt>
-                <dd>91%</dd>
+                <dd id="metric-average-accuracy">--</dd>
+              </div>
+              <div class="metric-item">
+                <dt>Total Quizzes</dt>
+                <dd id="metric-total-quizzes">--</dd>
+              </div>
+              <div class="metric-item">
+                <dt>Average Quiz Score</dt>
+                <dd id="metric-average-quiz-score">--</dd>
               </div>
             </dl>
           </section>
@@ -125,6 +141,6 @@
       </div>
     </div>
 
-    <script src="./profile.js" defer></script>
+    <script type="module" src="./profile.js"></script>
   </body>
 </html>

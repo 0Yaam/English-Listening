@@ -5,7 +5,12 @@ description = "3-tier FastAPI backend skeleton for an English listening practice
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "bcrypt<5",
+    "email-validator",
     "fastapi",
+    "passlib[bcrypt]",
+    "python-jose[cryptography]",
+    "sqlalchemy",
     "uvicorn[standard]",
     "youtube-transcript-api",
 ]

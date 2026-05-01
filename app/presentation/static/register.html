@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Shadowing Studio</title>
+    <link rel="stylesheet" href="./auth.css" />
+  </head>
+  <body data-auth-page="register">
+    <main class="auth-shell">
+      <section class="auth-panel" aria-labelledby="auth-title">
+        <p class="auth-kicker">Shadowing Studio</p>
+        <h1 id="auth-title" class="auth-title">Create your Shadowing account</h1>
+        <p class="auth-copy">
+          Save completed shadowing sessions, store transcripts, and generate reading quizzes.
+        </p>
+
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-username" class="auth-label">Username</label>
+            <input
+              id="auth-username"
+              name="username"
+              class="auth-input"
+              type="text"
+              autocomplete="username"
+              minlength="3"
+              required
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Email</label>
+            <input
+              id="auth-email"
+              name="email"
+              class="auth-input"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Password</label>
+            <input
+              id="auth-password"
+              name="password"
+              class="auth-input"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-confirm-password" class="auth-label">Confirm password</label>
+            <input
+              id="auth-confirm-password"
+              name="confirm_password"
+              class="auth-input"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              required
+            />
+          </div>
+
+          <div
+            id="auth-error"
+            class="auth-message auth-message-error"
+            aria-live="polite"
+            hidden
+          ></div>
+          <div id="auth-info" class="auth-message" hidden></div>
+
+          <button id="auth-submit" type="submit" class="auth-submit">Create account</button>
+        </form>
+
+        <p class="auth-footer">
+          Already have an account?
+          <a href="/login" class="auth-link">Sign in</a>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./auth.js"></script>
+  </body>
+</html>

@@ -19,3 +19,13 @@ def get_index_page() -> FileResponse:
 @router.get("/profile")
 def get_profile_page() -> RedirectResponse:
     return RedirectResponse(url="/static/profile.html")
+
+
+@router.get("/login")
+def get_login_page() -> RedirectResponse:
+    return RedirectResponse(url="/static/login.html")
+
+
+@router.get("/register")
+def get_register_page() -> RedirectResponse:
+    return RedirectResponse(url="/static/register.html")

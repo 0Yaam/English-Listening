@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Shadowing Studio</title>
+    <link rel="stylesheet" href="./auth.css" />
+  </head>
+  <body data-auth-page="login">
+    <main class="auth-shell">
+      <section class="auth-panel" aria-labelledby="auth-title">
+        <p class="auth-kicker">Shadowing Studio</p>
+        <h1 id="auth-title" class="auth-title">Sign in to continue learning</h1>
+        <p class="auth-copy">
+          Continue to your transcript history, generated quizzes, and learning progress.
+        </p>
+
+        <form id="auth-form" class="auth-form" novalidate>
+          <div class="auth-field">
+            <label for="auth-email" class="auth-label">Email</label>
+            <input
+              id="auth-email"
+              name="email"
+              class="auth-input"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
+
+          <div class="auth-field">
+            <label for="auth-password" class="auth-label">Password</label>
+            <input
+              id="auth-password"
+              name="password"
+              class="auth-input"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <div
+            id="auth-error"
+            class="auth-message auth-message-error"
+            aria-live="polite"
+            hidden
+          ></div>
+          <div id="auth-info" class="auth-message" hidden></div>
+
+          <button id="auth-submit" type="submit" class="auth-submit">Sign in</button>
+        </form>
+
+        <p class="auth-footer">
+          <a href="/register" class="auth-link">Create an account</a>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./auth.js"></script>
+  </body>
+</html>

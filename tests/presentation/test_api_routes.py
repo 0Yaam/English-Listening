@@ -119,3 +119,21 @@ def test_profile_page_is_served() -> None:
 
     assert response.status_code == 200
     assert "User Profile & Transcript History" in response.text
+
+
+def test_login_page_is_served() -> None:
+    client = TestClient(app)
+
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert "Sign in to continue learning" in response.text
+
+
+def test_register_page_is_served() -> None:
+    client = TestClient(app)
+
+    response = client.get("/register")
+
+    assert response.status_code == 200
+    assert "Create your Shadowing account" in response.text

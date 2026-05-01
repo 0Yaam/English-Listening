@@ -1,9 +1,13 @@
 const AppState = Object.freeze({
   IDLE: "IDLE",
+  READY: "READY",
   PLAYING: "PLAYING",
   WAITING_FOR_INPUT: "WAITING_FOR_INPUT",
+  CHECKING: "CHECKING",
   FINISHED: "FINISHED",
 })
+
+const ACCESS_TOKEN_STORAGE_KEY = "shadowing_access_token"
 
 class YouTubePlayerController {
   static apiReadyPromise = null
@@ -30,7 +34,7 @@ class YouTubePlayerController {
           },
           events: {
             onReady: () => resolve(),
-            onError: () => reject(new Error("Không thể khởi tạo YouTube player.")),
+            onError: () => reject(new Error("Could not initialize the YouTube player.")),
           },
         })
       })
@@ -62,7 +66,7 @@ class YouTubePlayerController {
           const script = document.createElement("script")
           script.src = "https://www.youtube.com/iframe_api"
           script.async = true
-          script.onerror = () => reject(new Error("Không tải được YouTube IFrame API."))
+          script.onerror = () => reject(new Error("Could not load the YouTube IFrame API."))
           document.head.append(script)
         }
       })
@@ -75,17 +79,11 @@ class YouTubePlayerController {
     await this.initialize()
 
     if (autoplay) {
-      this.player.loadVideoById({
-        videoId,
-        startSeconds,
-      })
+      this.player.loadVideoById({ videoId, startSeconds })
       return
     }
 
-    this.player.cueVideoById({
-      videoId,
-      startSeconds,
-    })
+    this.player.cueVideoById({ videoId, startSeconds })
   }
 
   play() {
@@ -124,18 +122,23 @@ class AppController {
     this.session = null
     this.frameRequestId = null
     this.pendingAdvanceId = null
+    this.currentBlankInputs = []
+    this.modeLabelOverride = null
   }
 
   async initialize() {
     this.bindEvents()
     await this.playerController.initialize()
     this.setState(AppState.IDLE)
-    this.renderStatus("Ứng dụng đã sẵn sàng.")
+    this.renderStatus("Ready when you are.")
+    this.renderDifficulty()
+    this.renderWorkspaceMode()
+    this.renderAccuracy()
   }
 
   bindEvents() {
     this.elements.lessonForm.addEventListener("submit", (event) => {
-      this.handleLessonSubmit(event)
+      void this.handleLessonSubmit(event)
     })
 
     this.elements.startSessionButton.addEventListener("click", () => {
@@ -147,7 +150,19 @@ class AppController {
     })
 
     this.elements.answerForm.addEventListener("submit", (event) => {
-      this.handleAnswerSubmit(event)
+      void this.handleAnswerSubmit(event)
+    })
+
+    this.elements.nextSegmentButton.addEventListener("click", () => {
+      this.advanceToNextStep()
+    })
+
+    this.elements.practiceAnotherButton.addEventListener("click", () => {
+      this.resetToIdle()
+    })
+
+    document.addEventListener("keydown", (event) => {
+      this.handleGlobalKeydown(event)
     })
   }
 
@@ -157,44 +172,76 @@ class AppController {
     this.resetPlayback()
     this.hideFeedback()
     this.hideResults()
+    this.hideSessionSaveStatus()
 
     const videoUrl = this.elements.videoUrlInput.value.trim()
     const difficulty = Number(this.elements.difficultySelect.value)
-    const videoId = this.extractYouTubeVideoId(videoUrl)
+    this.elements.videoUrlInput.removeAttribute("aria-invalid")
 
-    if (!videoId) {
-      this.renderStatus("URL YouTube không hợp lệ. Hãy kiểm tra lại.")
+    if (!videoUrl) {
+      this.elements.videoUrlInput.setAttribute("aria-invalid", "true")
+      this.renderStatus("Paste a YouTube link to begin.", "error")
       return
     }
 
-    this.renderStatus("Đang tạo bài tập từ phụ đề...")
+    const videoId = this.extractYouTubeVideoId(videoUrl)
+
+    if (!videoId) {
+      this.elements.videoUrlInput.setAttribute("aria-invalid", "true")
+      this.renderStatus("Please enter a valid YouTube URL.", "error")
+      return
+    }
+
+    this.elements.generateLessonButton.disabled = true
+    this.elements.generateLessonButton.textContent = "Starting..."
     this.setState(AppState.IDLE)
+    this.setModeOverride("Loading transcript")
+    this.renderStatus("Loading transcript and building the exercise...")
     this.toggleSessionButtons(false)
 
     try {
       const exercise = await this.fetchBlankExercise(videoId, difficulty)
       if (exercise.items.length === 0) {
-        throw new Error("Không có subtitle phù hợp để tạo bài tập.")
+        throw new Error("No subtitle segments were available for this exercise.")
       }
 
       this.session = {
         exercise,
         currentIndex: 0,
         results: [],
+        sourceUrl: videoUrl,
+        saveState: "idle",
+        saveMessage: "",
+        saveErrorDetail: "",
+        savedSessionId: null,
       }
 
+      this.showWorkspace()
+      this.showVideoLoading("Loading video...")
+      this.setModeOverride("Loading video")
+      this.renderStatus("Loading the video player for this practice session...")
       await this.playerController.loadVideo(videoId, exercise.items[0].start, false)
+      this.hideVideoLoading()
 
       this.renderExerciseLoaded()
       this.renderCurrentPrompt()
       this.toggleSessionButtons(true)
+      this.setState(AppState.READY)
       this.renderStatus(
-        `Đã tạo ${exercise.items.length} câu hỏi. Nhấn "Bắt đầu luyện tập" để bắt đầu.`,
+        `Exercise ready. ${exercise.items.length} segments loaded. Press "Start practice" to begin.`,
+        "success",
       )
     } catch (error) {
-      this.renderStatus(error.message)
+      this.hideVideoLoading()
+      this.renderStatus(
+        error instanceof Error ? error.message : "Could not create the exercise.",
+        "error",
+      )
       this.session = null
       this.renderEmptyState()
+    } finally {
+      this.elements.generateLessonButton.disabled = false
+      this.elements.generateLessonButton.textContent = "Start practice"
     }
   }
 
@@ -210,14 +257,20 @@ class AppController {
       return
     }
 
-    const userInput = this.elements.answerInput.value.trim()
-    if (!userInput) {
-      this.renderStatus("Hãy nhập câu trả lời trước khi gửi.")
+    const firstEmptyBlankIndex = this.getFirstEmptyBlankIndex()
+    if (firstEmptyBlankIndex !== null) {
+      this.renderStatus("Fill every blank before checking this sentence.", "warning")
+      this.focusBlankByIndex(firstEmptyBlankIndex, "end")
       return
     }
 
+    const userInput = this.buildUserSentenceFromInlineInputs()
+    this.setState(AppState.CHECKING)
+    this.disableInlineInputs(true)
     this.elements.submitAnswerButton.disabled = true
-    this.renderStatus("Đang chấm điểm...")
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
+    this.renderStatus("Scoring your answer...")
 
     try {
       const scorePayload = await this.scoreAnswer({
@@ -234,16 +287,39 @@ class AppController {
         isCorrect,
       })
 
+      this.renderAccuracy()
       this.renderFeedback({
         item: currentItem,
         scorePayload,
         isCorrect,
       })
-      this.elements.submitAnswerButton.disabled = false
-      this.advanceToNextStep()
+      this.elements.nextSegmentButton.hidden = false
+      this.elements.nextSegmentButton.disabled = false
+
+      if (isCorrect) {
+        this.setState(AppState.WAITING_FOR_INPUT)
+        this.setModeOverride("Correct")
+        this.disableInlineInputs(true)
+        this.elements.submitAnswerButton.disabled = true
+        this.elements.submitAnswerButton.textContent = "Correct"
+        this.renderStatus("Correct. Move to the next segment when you are ready.", "success")
+      } else {
+        this.setState(AppState.WAITING_FOR_INPUT)
+        this.setModeOverride("Needs review")
+        this.disableInlineInputs(false)
+        this.elements.submitAnswerButton.disabled = false
+        this.elements.submitAnswerButton.textContent = "Check again"
+        this.renderStatus(
+          "Needs review. Edit the highlighted blanks or move to the next segment.",
+          "warning",
+        )
+        this.focusFirstIncorrectBlank()
+      }
     } catch (error) {
+      this.setState(AppState.WAITING_FOR_INPUT)
+      this.disableInlineInputs(false)
       this.elements.submitAnswerButton.disabled = false
-      this.renderStatus(error.message)
+      this.renderStatus(error instanceof Error ? error.message : "Could not score this answer.")
     }
   }
 
@@ -254,7 +330,7 @@ class AppController {
     const payload = await response.json()
 
     if (!response.ok) {
-      throw new Error(payload.message || "Không thể tạo bài tập.")
+      throw new Error(payload.message || "Could not create a blank exercise.")
     }
 
     return payload
@@ -275,16 +351,12 @@ class AppController {
         }),
       })
     } catch (error) {
-      return this.buildFallbackScore({
-        originalText,
-        userInput,
-      })
+      return this.buildFallbackScore({ originalText, userInput })
     }
 
     const payload = await response.json()
-
     if (!response.ok) {
-      throw new Error(payload.message || "Không thể chấm điểm.")
+      throw new Error(payload.message || "Could not score this answer.")
     }
 
     return payload
@@ -292,7 +364,7 @@ class AppController {
 
   startSession() {
     if (!this.session) {
-      this.renderStatus("Chưa có bài tập để bắt đầu.")
+      this.renderStatus("Create an exercise first.")
       return
     }
 
@@ -301,14 +373,20 @@ class AppController {
     }
 
     if (this.state === AppState.WAITING_FOR_INPUT) {
-      this.renderStatus("Hãy hoàn thành câu hiện tại trước khi tiếp tục.")
+      this.renderStatus("Finish the current sentence before continuing.")
       return
     }
 
     if (this.state === AppState.FINISHED) {
       this.session.currentIndex = 0
       this.session.results = []
+      this.session.saveState = "idle"
+      this.session.saveMessage = ""
+      this.session.saveErrorDetail = ""
+      this.session.savedSessionId = null
       this.hideResults()
+      this.hideSessionSaveStatus()
+      this.renderAccuracy()
     }
 
     this.hideFeedback()
@@ -317,20 +395,25 @@ class AppController {
 
   replayCurrentSegment() {
     const currentItem = this.getCurrentItem()
-    if (!currentItem) {
+    if (!currentItem || !this.session) {
       return
     }
 
     window.clearTimeout(this.pendingAdvanceId)
     this.pendingAdvanceId = null
     this.hideFeedback()
-    this.elements.answerForm.hidden = true
-    this.elements.answerInput.value = ""
+    this.resetInlineInputs()
+    this.clearBlankResults()
+    this.disableInlineInputs(true)
+    this.elements.submitAnswerButton.disabled = true
+    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
 
     this.playerController.seekTo(currentItem.start)
     this.playerController.play()
     this.setState(AppState.PLAYING)
-    this.renderStatus("Đang phát lại đoạn hiện tại.")
+    this.renderStatus("Replaying the current segment.")
     this.startFrameLoop()
   }
 
@@ -343,16 +426,21 @@ class AppController {
 
     window.clearTimeout(this.pendingAdvanceId)
     this.pendingAdvanceId = null
-    this.elements.answerForm.hidden = true
-    this.elements.answerInput.value = ""
-    this.elements.submitAnswerButton.disabled = false
-
+    this.hideFeedback()
     this.renderCurrentPrompt()
+    this.resetInlineInputs()
+    this.clearBlankResults()
+    this.disableInlineInputs(true)
+    this.elements.submitAnswerButton.disabled = true
+    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
+
     this.playerController.seekTo(currentItem.start)
     this.playerController.play()
     this.setState(AppState.PLAYING)
     this.renderStatus(
-      `Đang phát đoạn ${this.session.currentIndex + 1}/${this.session.exercise.items.length}.`,
+      `Playing segment ${this.session.currentIndex + 1}/${this.session.exercise.items.length}.`,
     )
     this.startFrameLoop()
   }
@@ -361,32 +449,43 @@ class AppController {
     this.stopFrameLoop()
     this.playerController.pause()
     this.setState(AppState.WAITING_FOR_INPUT)
-    this.elements.answerForm.hidden = false
-    this.elements.answerInput.focus()
-    this.renderStatus("Video đã dừng. Hãy nhập câu bạn vừa nghe được.")
+    this.disableInlineInputs(false)
+    this.elements.submitAnswerButton.disabled = false
+    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.focusFirstInlineInput()
+    this.renderStatus("The video is paused. Fill the missing words and submit the sentence.")
   }
 
   advanceToNextStep() {
-    const isLastItem = this.session.currentIndex >= this.session.exercise.items.length - 1
+    if (!this.session) {
+      return
+    }
 
+    const isLastItem = this.session.currentIndex >= this.session.exercise.items.length - 1
     if (isLastItem) {
       this.finishSession()
       return
     }
 
-    this.renderStatus("Chuẩn bị chuyển sang đoạn tiếp theo...")
-    this.pendingAdvanceId = window.setTimeout(() => {
-      this.session.currentIndex += 1
-      this.playCurrentSegment()
-    }, 1200)
+    this.renderStatus("Preparing the next segment...")
+    this.session.currentIndex += 1
+    this.playCurrentSegment()
   }
 
   finishSession() {
     this.resetPlayback()
     this.setState(AppState.FINISHED)
-    this.elements.answerForm.hidden = true
+    this.disableInlineInputs(true)
+    this.elements.submitAnswerButton.disabled = true
+    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
     this.renderSummary()
-    this.renderStatus("Hoàn thành buổi luyện tập.")
+    this.renderStatus(
+      "Practice session completed. Review your results or start another video.",
+      "success",
+    )
+    void this.handleCompletedSessionPersistence()
   }
 
   startFrameLoop() {
@@ -405,7 +504,6 @@ class AppController {
 
       const currentTime = this.playerController.getCurrentTime()
       const endTime = currentItem.start + currentItem.duration
-
       if (currentTime >= endTime - 0.05) {
         this.pauseForInput()
         return
@@ -439,11 +537,21 @@ class AppController {
     return this.session.exercise.items[this.session.currentIndex] ?? null
   }
 
+  showWorkspace() {
+    this.elements.entryStage.hidden = true
+    this.elements.workspaceStage.hidden = false
+    this.elements.topbarSessionLabel.hidden = false
+  }
+
   renderExerciseLoaded() {
     this.elements.emptyState.hidden = true
     this.elements.exerciseWorkspace.hidden = false
-    this.elements.answerForm.hidden = true
+    this.elements.answerForm.hidden = false
     this.elements.replaySegmentButton.disabled = false
+    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
+    this.renderWorkspaceMode()
   }
 
   renderCurrentPrompt() {
@@ -452,17 +560,105 @@ class AppController {
       return
     }
 
-    this.elements.progressText.textContent =
-      `Đoạn ${this.session.currentIndex + 1} / ${this.session.exercise.items.length}`
-    this.elements.promptText.textContent = currentItem.blanked_text
+    const progressLabel = `Segment ${this.session.currentIndex + 1} / ${this.session.exercise.items.length}`
+    this.elements.progressText.textContent = progressLabel
+    this.elements.railProgressText.textContent = progressLabel
+    this.elements.promptLabel.textContent = `Current sentence | ${progressLabel}`
+
+    this.currentBlankInputs = []
+    this.elements.promptText.innerHTML = ""
+
+    const placeholderPattern = /_{4,}/g
+    let lastIndex = 0
+    let answerIndex = 0
+    let match
+
+    while ((match = placeholderPattern.exec(currentItem.blanked_text)) !== null) {
+      const leadingText = currentItem.blanked_text.slice(lastIndex, match.index)
+      if (leadingText) {
+        this.elements.promptText.append(document.createTextNode(leadingText))
+      }
+
+      const blankWrapper = document.createElement("span")
+      blankWrapper.className = "inline-blank"
+
+      const input = document.createElement("input")
+      input.type = "text"
+      input.className = "inline-blank-input"
+      input.autocomplete = "off"
+      input.spellcheck = false
+      input.dataset.answerIndex = String(answerIndex)
+
+      const answerLength = currentItem.answers?.[answerIndex]?.length ?? match[0].length
+      input.size = Math.max(4, Math.min(answerLength + 1, 14))
+      input.dataset.baseLength = String(Math.max(6, Math.min(answerLength + 1, 14)))
+      input.placeholder = "..."
+      input.disabled = this.state !== AppState.WAITING_FOR_INPUT
+      input.setAttribute("aria-label", `Blank ${answerIndex + 1}`)
+      this.attachBlankInputHandlers(input, answerIndex)
+      this.resizeBlankInput(input)
+
+      blankWrapper.append(input)
+      this.elements.promptText.append(blankWrapper)
+      this.currentBlankInputs.push(input)
+
+      answerIndex += 1
+      lastIndex = placeholderPattern.lastIndex
+    }
+
+    const trailingText = currentItem.blanked_text.slice(lastIndex)
+    if (trailingText) {
+      this.elements.promptText.append(document.createTextNode(trailingText))
+    }
+
+    if (this.currentBlankInputs.length === 0) {
+      const fallbackInput = document.createElement("input")
+      fallbackInput.type = "text"
+      fallbackInput.className = "inline-blank-input"
+      fallbackInput.placeholder = "Type what you heard"
+      fallbackInput.size = 24
+      fallbackInput.dataset.baseLength = "12"
+      fallbackInput.disabled = this.state !== AppState.WAITING_FOR_INPUT
+      fallbackInput.setAttribute("aria-label", "Answer input")
+      this.attachBlankInputHandlers(fallbackInput, 0)
+      this.resizeBlankInput(fallbackInput)
+      this.currentBlankInputs.push(fallbackInput)
+      this.elements.promptText.append(document.createTextNode(" "))
+      this.elements.promptText.append(fallbackInput)
+    }
   }
 
   renderFeedback({ item, scorePayload, isCorrect }) {
+    const blankResults = this.evaluateBlankInputs(item)
+    this.applyBlankResults(blankResults)
     this.elements.feedbackPanel.hidden = false
     this.elements.feedbackPanel.dataset.variant = isCorrect ? "success" : "warning"
-    this.elements.feedbackLabel.textContent = isCorrect ? "Đúng" : "Chưa đúng"
-    this.elements.feedbackScore.textContent = `Độ chính xác: ${scorePayload.accuracy}%`
-    this.elements.feedbackAnswer.textContent = `Câu gốc: ${item.original_text}`
+    this.elements.feedbackLabel.textContent = isCorrect ? "Correct" : "Needs review"
+    this.elements.feedbackScore.textContent = `Accuracy: ${scorePayload.accuracy}%`
+    this.elements.feedbackAnswer.textContent = `Original sentence: ${item.original_text}`
+
+    const correctionsMarkup = blankResults
+      .map((result, index) => {
+        if (result.isCorrect || !result.expected) {
+          return ""
+        }
+
+        return `
+          <li class="feedback-correction-item">
+            <span class="feedback-correction-index">Blank ${index + 1}</span>
+            <p class="feedback-correction-copy">Expected <strong>${this.escapeHtml(result.expected)}</strong></p>
+          </li>
+        `
+      })
+      .filter(Boolean)
+      .join("")
+
+    if (correctionsMarkup) {
+      this.elements.feedbackPanel.insertAdjacentHTML(
+        "beforeend",
+        `<ul class="feedback-correction-list">${correctionsMarkup}</ul>`,
+      )
+    }
   }
 
   hideFeedback() {
@@ -471,6 +667,7 @@ class AppController {
     this.elements.feedbackLabel.textContent = ""
     this.elements.feedbackScore.textContent = ""
     this.elements.feedbackAnswer.textContent = ""
+    this.elements.feedbackPanel.querySelector(".feedback-correction-list")?.remove()
   }
 
   renderSummary() {
@@ -478,26 +675,32 @@ class AppController {
       return
     }
 
-    const { results } = this.session
-    const total = results.reduce((sum, result) => sum + result.accuracy, 0)
-    const average = results.length > 0 ? (total / results.length).toFixed(2) : "0.00"
-
+    const average = this.computeAverageAccuracy()
+    const totalSegments = this.session.exercise.items.length
+    const correctCount = this.session.results.filter((result) => result.isCorrect).length
+    const reviewCount = Math.max(totalSegments - correctCount, 0)
     this.elements.resultsPanel.hidden = false
-    this.elements.averageScore.textContent = `Điểm trung bình: ${average}%`
+    this.elements.totalSegmentsStat.textContent = String(totalSegments)
+    this.elements.averageScore.textContent = average === null ? "--" : `${average}%`
+    this.elements.correctCountStat.textContent = String(correctCount)
+    this.elements.reviewCountStat.textContent = String(reviewCount)
     this.elements.resultsList.innerHTML = ""
+    this.renderSessionSaveStatus()
 
-    for (const [index, result] of results.entries()) {
+    for (const [index, result] of this.session.results.entries()) {
       const item = document.createElement("article")
       item.className = "result-item"
 
       const title = document.createElement("strong")
-      title.textContent = `Đoạn ${index + 1} - ${result.isCorrect ? "Đúng" : "Chưa đúng"}`
+      title.textContent = `Segment ${index + 1} - ${result.isCorrect ? "Correct" : "Needs review"}`
 
       const score = document.createElement("p")
-      score.textContent = `Độ chính xác: ${result.accuracy}%`
+      score.className = "result-copy"
+      score.textContent = `Accuracy: ${result.accuracy}%`
 
       const answer = document.createElement("p")
-      answer.textContent = `Câu gốc: ${result.originalText}`
+      answer.className = "result-copy"
+      answer.textContent = `Original sentence: ${result.originalText}`
 
       item.append(title, score, answer)
       this.elements.resultsList.append(item)
@@ -506,15 +709,41 @@ class AppController {
 
   hideResults() {
     this.elements.resultsPanel.hidden = true
+    this.elements.totalSegmentsStat.textContent = "0"
+    this.elements.averageScore.textContent = "--"
+    this.elements.correctCountStat.textContent = "0"
+    this.elements.reviewCountStat.textContent = "0"
     this.elements.resultsList.innerHTML = ""
-    this.elements.averageScore.textContent = ""
+    this.hideSessionSaveStatus()
+  }
+
+  resetToIdle() {
+    this.resetPlayback()
+    this.hideFeedback()
+    this.hideResults()
+    this.hideSessionSaveStatus()
+    this.hideVideoLoading()
+    this.currentBlankInputs = []
+    this.session = null
+    this.renderEmptyState()
+    this.elements.videoUrlInput.value = ""
+    this.elements.videoUrlInput.removeAttribute("aria-invalid")
+    this.setState(AppState.IDLE)
+    this.renderStatus("Ready when you are.")
+    this.renderAccuracy()
+    this.elements.videoUrlInput.focus()
   }
 
   renderEmptyState() {
     this.elements.emptyState.hidden = false
     this.elements.exerciseWorkspace.hidden = true
     this.elements.answerForm.hidden = true
+    this.elements.nextSegmentButton.hidden = true
+    this.elements.nextSegmentButton.disabled = true
     this.elements.replaySegmentButton.disabled = true
+    this.elements.workspaceStage.hidden = true
+    this.elements.entryStage.hidden = false
+    this.elements.topbarSessionLabel.hidden = true
     this.toggleSessionButtons(false)
   }
 
@@ -523,20 +752,148 @@ class AppController {
     this.elements.replaySegmentButton.disabled = !enabled
   }
 
-  renderStatus(message) {
+  renderStatus(message, variant = "default") {
     this.elements.statusMessage.textContent = message
+    this.elements.workspaceStatusMessage.textContent = message
+
+    if (variant === "default") {
+      this.elements.statusMessage.removeAttribute("data-variant")
+      this.elements.workspaceStatusMessage.removeAttribute("data-variant")
+      return
+    }
+
+    this.elements.statusMessage.setAttribute("data-variant", variant)
+    this.elements.workspaceStatusMessage.setAttribute("data-variant", variant)
+  }
+
+  showVideoLoading(message = "Loading video...") {
+    this.elements.videoLoadingIndicator.hidden = false
+    this.elements.videoLoadingIndicator.textContent = message
+  }
+
+  hideVideoLoading() {
+    this.elements.videoLoadingIndicator.hidden = true
+  }
+
+  setModeOverride(label) {
+    this.modeLabelOverride = label
+    this.renderWorkspaceMode()
+  }
+
+  renderAccuracy() {
+    const latestResult = this.session?.results.at(-1) ?? null
+    const currentScore = latestResult ? `${latestResult.accuracy}%` : "--"
+    this.elements.workspaceAccuracy.textContent = currentScore
+    this.elements.railWorkspaceAccuracy.textContent = currentScore
+  }
+
+  renderDifficulty() {
+    const selectedOption = this.elements.difficultySelect.selectedOptions[0]
+    const label = selectedOption?.textContent?.replace(/^\d+\s*-\s*/, "").trim() || "Standard"
+    this.elements.workspaceDifficulty.textContent = label
+  }
+
+  renderWorkspaceMode() {
+    const labelMap = {
+      [AppState.IDLE]: "Waiting",
+      [AppState.READY]: "Ready",
+      [AppState.PLAYING]: "Listening",
+      [AppState.WAITING_FOR_INPUT]: "Type the missing words",
+      [AppState.CHECKING]: "Checking",
+      [AppState.FINISHED]: "Finished",
+    }
+    const modeLabel = this.modeLabelOverride ?? labelMap[this.state] ?? this.state
+    this.elements.workspaceMode.textContent = modeLabel
+    this.elements.railWorkspaceMode.textContent = modeLabel
+    this.elements.workspaceStateBadge.textContent = modeLabel
+
+    let badgeVariant = "idle"
+    if (modeLabel === "Correct") {
+      badgeVariant = "success"
+    } else if (modeLabel === "Needs review") {
+      badgeVariant = "review"
+    } else if (
+      modeLabel === "Loading transcript" ||
+      modeLabel === "Loading video" ||
+      this.state === AppState.CHECKING
+    ) {
+      badgeVariant = "loading"
+    } else if (this.state === AppState.PLAYING) {
+      badgeVariant = "listening"
+    } else if (this.state === AppState.WAITING_FOR_INPUT) {
+      badgeVariant = "input"
+    } else if (this.state === AppState.FINISHED) {
+      badgeVariant = "success"
+    } else if (this.state === AppState.READY) {
+      badgeVariant = "ready"
+    }
+
+    this.elements.workspaceStateBadge.dataset.variant = badgeVariant
   }
 
   setState(nextState) {
     this.state = nextState
+    this.modeLabelOverride = null
     this.elements.stateBadge.textContent = nextState
+    this.renderWorkspaceMode()
 
     if (nextState === AppState.FINISHED) {
-      this.elements.startSessionButton.textContent = "Luyện lại từ đầu"
+      this.elements.startSessionButton.textContent = "Practice again"
+      this.elements.startSessionButton.disabled = false
       return
     }
 
-    this.elements.startSessionButton.textContent = "Bắt đầu luyện tập"
+    if (nextState === AppState.READY) {
+      this.elements.startSessionButton.textContent = "Start practice"
+      this.elements.startSessionButton.disabled = false
+      return
+    }
+
+    if (nextState === AppState.PLAYING) {
+      this.elements.startSessionButton.textContent = "Listening..."
+      this.elements.startSessionButton.disabled = true
+      return
+    }
+
+    if (nextState === AppState.WAITING_FOR_INPUT) {
+      this.elements.startSessionButton.textContent = "Waiting for input"
+      this.elements.startSessionButton.disabled = true
+      return
+    }
+
+    if (nextState === AppState.CHECKING) {
+      this.elements.startSessionButton.textContent = "Checking..."
+      this.elements.startSessionButton.disabled = true
+      return
+    }
+
+    this.elements.startSessionButton.textContent = "Start practice"
+    this.elements.startSessionButton.disabled = !this.session
+  }
+
+  handleGlobalKeydown(event) {
+    const isTypingInBlank = this.currentBlankInputs.includes(document.activeElement)
+
+    if (event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (this.session && this.state !== AppState.IDLE) {
+        event.preventDefault()
+        this.replayCurrentSegment()
+      }
+      return
+    }
+
+    if (event.code === "Space" && !isTypingInBlank) {
+      if (this.session && this.state === AppState.WAITING_FOR_INPUT) {
+        event.preventDefault()
+        this.replayCurrentSegment()
+        return
+      }
+
+      if (this.session && (this.state === AppState.READY || this.state === AppState.FINISHED)) {
+        event.preventDefault()
+        this.startSession()
+      }
+    }
   }
 
   extractYouTubeVideoId(url) {
@@ -594,21 +951,432 @@ class AppController {
       is_exact_match: accuracy === 100,
     }
   }
+
+  buildUserSentenceFromInlineInputs() {
+    const currentItem = this.getCurrentItem()
+    if (!currentItem) {
+      return ""
+    }
+
+    const placeholderPattern = /_{4,}/g
+    let lastIndex = 0
+    let answerIndex = 0
+    let builtSentence = ""
+    let match
+
+    while ((match = placeholderPattern.exec(currentItem.blanked_text)) !== null) {
+      builtSentence += currentItem.blanked_text.slice(lastIndex, match.index)
+      builtSentence += this.currentBlankInputs[answerIndex]?.value?.trim() ?? ""
+      answerIndex += 1
+      lastIndex = placeholderPattern.lastIndex
+    }
+
+    builtSentence += currentItem.blanked_text.slice(lastIndex)
+    return builtSentence.replace(/\s+/g, " ").trim()
+  }
+
+  resetInlineInputs() {
+    for (const input of this.currentBlankInputs) {
+      input.value = ""
+      this.resizeBlankInput(input)
+    }
+  }
+
+  disableInlineInputs(disabled) {
+    for (const input of this.currentBlankInputs) {
+      input.disabled = disabled
+    }
+  }
+
+  focusFirstInlineInput() {
+    const firstInput = this.currentBlankInputs[0]
+    if (firstInput) {
+      firstInput.focus()
+    }
+  }
+
+  focusFirstIncorrectBlank() {
+    const firstIncorrectInput = this.currentBlankInputs.find(
+      (input) => input.dataset.result === "incorrect",
+    )
+    if (firstIncorrectInput) {
+      firstIncorrectInput.focus()
+      return
+    }
+
+    this.focusFirstInlineInput()
+  }
+
+  getFirstEmptyBlankIndex() {
+    const index = this.currentBlankInputs.findIndex((input) => input.value.trim().length === 0)
+    return index === -1 ? null : index
+  }
+
+  attachBlankInputHandlers(input, blankIndex) {
+    input.addEventListener("input", () => {
+      this.resizeBlankInput(input)
+      input.dataset.result = ""
+      input.removeAttribute("aria-invalid")
+    })
+
+    input.addEventListener("keydown", (event) => {
+      const selectionStart = input.selectionStart ?? 0
+      const selectionEnd = input.selectionEnd ?? 0
+      const isCollapsed = selectionStart === selectionEnd
+      const valueLength = input.value.length
+
+      if (event.key === "Enter") {
+        event.preventDefault()
+        if (!this.elements.submitAnswerButton.disabled) {
+          this.elements.answerForm.requestSubmit()
+        }
+        return
+      }
+
+      if (event.key === " ") {
+        event.preventDefault()
+        this.replayCurrentSegment()
+        return
+      }
+
+      if (event.key === "ArrowRight" && isCollapsed && selectionStart === valueLength) {
+        if (this.focusBlankByIndex(blankIndex + 1, "start")) {
+          event.preventDefault()
+        }
+        return
+      }
+
+      if (event.key === "ArrowLeft" && isCollapsed && selectionStart === 0) {
+        if (this.focusBlankByIndex(blankIndex - 1, "end")) {
+          event.preventDefault()
+        }
+        return
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault()
+        input.blur()
+      }
+    })
+  }
+
+  focusBlankByIndex(index, caretPosition = "start") {
+    const target = this.currentBlankInputs[index]
+    if (!target) {
+      return false
+    }
+
+    target.focus()
+    const caretIndex = caretPosition === "end" ? target.value.length : 0
+    window.requestAnimationFrame(() => {
+      try {
+        target.setSelectionRange(caretIndex, caretIndex)
+      } catch (error) {
+        return
+      }
+    })
+    return true
+  }
+
+  resizeBlankInput(input) {
+    const baseLength = Number(input.dataset.baseLength || input.size || 8)
+    const contentLength = Math.max(input.value.trim().length, baseLength, 6)
+    input.style.width = `${Math.min(contentLength + 1, 18)}ch`
+  }
+
+  normalizeBlankValue(value) {
+    return value.toLowerCase().trim().replace(/[^\p{L}\p{N}'-]+/gu, " ")
+  }
+
+  evaluateBlankInputs(item) {
+    const answers = item.answers ?? []
+    return this.currentBlankInputs.map((input, index) => {
+      const expected = answers[index] ?? ""
+      const actual = input.value.trim()
+      return {
+        expected,
+        actual,
+        isCorrect:
+          expected.length === 0
+            ? null
+            : this.normalizeBlankValue(actual) === this.normalizeBlankValue(expected),
+      }
+    })
+  }
+
+  applyBlankResults(blankResults) {
+    blankResults.forEach((result, index) => {
+      const input = this.currentBlankInputs[index]
+      if (!input) {
+        return
+      }
+
+      if (result.isCorrect === null) {
+        input.dataset.result = ""
+        input.removeAttribute("aria-invalid")
+        return
+      }
+
+      input.dataset.result = result.isCorrect ? "correct" : "incorrect"
+      input.setAttribute("aria-invalid", String(!result.isCorrect))
+    })
+  }
+
+  clearBlankResults() {
+    this.currentBlankInputs.forEach((input) => {
+      input.dataset.result = ""
+      input.removeAttribute("aria-invalid")
+    })
+  }
+
+  escapeHtml(value) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;")
+  }
+
+  getAuthToken() {
+    try {
+      return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+    } catch (error) {
+      return null
+    }
+  }
+
+  clearAuthToken() {
+    try {
+      window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
+    } catch (error) {
+      return
+    }
+  }
+
+  async handleCompletedSessionPersistence() {
+    if (!this.session || this.state !== AppState.FINISHED) {
+      return
+    }
+
+    const authToken = this.getAuthToken()
+    if (!authToken) {
+      this.session.saveState = "signed-out"
+      this.session.saveMessage = "Sign in to save your history."
+      this.renderSessionSaveStatus()
+      return
+    }
+
+    await this.saveCompletedSession({ authToken })
+  }
+
+  async saveCompletedSession({ authToken, force = false } = {}) {
+    if (!this.session || this.state !== AppState.FINISHED) {
+      return
+    }
+
+    if (!force && (this.session.saveState === "saving" || this.session.saveState === "saved")) {
+      return
+    }
+
+    const token = authToken || this.getAuthToken()
+    if (!token) {
+      this.session.saveState = "signed-out"
+      this.session.saveMessage = "Sign in to save your history."
+      this.renderSessionSaveStatus()
+      return
+    }
+
+    this.session.saveState = "saving"
+    this.session.saveMessage = "Saving this session to your profile..."
+    this.session.saveErrorDetail = ""
+    this.renderSessionSaveStatus()
+
+    let response
+    try {
+      response = await fetch(`${this.apiBaseUrl}/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(this.buildCompletedSessionPayload()),
+      })
+    } catch (error) {
+      this.session.saveState = "error"
+      this.session.saveMessage = "Could not save this session right now."
+      this.session.saveErrorDetail = error instanceof Error ? error.message : ""
+      this.renderSessionSaveStatus()
+      return
+    }
+
+    let payload = null
+    try {
+      payload = await response.json()
+    } catch (error) {
+      payload = null
+    }
+
+    if (response.status === 401) {
+      this.clearAuthToken()
+      this.session.saveState = "signed-out"
+      this.session.saveMessage = "Your session has expired. Sign in to save your history."
+      this.renderSessionSaveStatus()
+      return
+    }
+
+    if (!response.ok) {
+      this.session.saveState = "error"
+      this.session.saveMessage = "Could not save this session right now."
+      this.session.saveErrorDetail = this.extractApiErrorMessage(payload)
+      this.renderSessionSaveStatus()
+      return
+    }
+
+    this.session.saveState = "saved"
+    this.session.saveMessage = "Saved to profile."
+    this.session.savedSessionId = payload?.session_id ?? null
+    this.renderSessionSaveStatus()
+  }
+
+  buildCompletedSessionPayload() {
+    const exercise = this.session.exercise
+
+    return {
+      video_id: exercise.video_id,
+      video_title: exercise.video_title ?? null,
+      source_url: this.session.sourceUrl ?? null,
+      accuracy_score: this.computeAverageAccuracy(),
+      completed_at: new Date().toISOString(),
+      transcript: {
+        raw_text: this.buildRawTranscript(),
+        language: exercise.language ?? null,
+        language_code: exercise.language_code ?? null,
+      },
+    }
+  }
+
+  buildRawTranscript() {
+    if (!this.session?.exercise?.items) {
+      return ""
+    }
+
+    return [...this.session.exercise.items]
+      .sort((left, right) => left.segment_index - right.segment_index)
+      .map((item) => item.original_text?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ")
+  }
+
+  computeAverageAccuracy() {
+    const results = this.session?.results ?? []
+    if (results.length === 0) {
+      return null
+    }
+
+    const total = results.reduce((sum, result) => sum + Number(result.accuracy || 0), 0)
+    return Number((total / results.length).toFixed(2))
+  }
+
+  extractApiErrorMessage(payload) {
+    if (payload && typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message.trim()
+    }
+    if (payload && typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail.trim()
+    }
+    return "Unknown error."
+  }
+
+  renderSessionSaveStatus() {
+    if (!this.session || this.state !== AppState.FINISHED) {
+      this.hideSessionSaveStatus()
+      return
+    }
+
+    const status = this.session.saveState
+    if (!status || status === "idle") {
+      this.hideSessionSaveStatus()
+      return
+    }
+
+    const container = this.elements.sessionSaveStatus
+    container.hidden = false
+    container.dataset.variant =
+      status === "saved" ? "success" : status === "error" ? "error" : "warning"
+
+    if (status === "saved" || status === "saving") {
+      container.innerHTML = `<p>${this.session.saveMessage}</p>`
+      return
+    }
+
+    if (status === "signed-out") {
+      container.innerHTML = `
+        <p>${this.session.saveMessage}</p>
+        <div class="session-save-actions">
+          <a class="inline-link" href="/login">Sign in</a>
+          <a class="inline-link" href="/register">Create an account</a>
+        </div>
+      `
+      return
+    }
+
+    container.innerHTML = `
+      <p>${this.session.saveMessage}</p>
+      <div class="session-save-actions">
+        <button id="retry-save-session-button" type="button" class="button-ghost">
+          Retry save
+        </button>
+        ${
+          this.session.saveErrorDetail
+            ? `<span class="status-message">${this.session.saveErrorDetail}</span>`
+            : ""
+        }
+      </div>
+    `
+
+    const retryButton = document.getElementById("retry-save-session-button")
+    if (retryButton) {
+      retryButton.addEventListener("click", () => {
+        void this.saveCompletedSession({ force: true })
+      })
+    }
+  }
+
+  hideSessionSaveStatus() {
+    this.elements.sessionSaveStatus.hidden = true
+    this.elements.sessionSaveStatus.dataset.variant = ""
+    this.elements.sessionSaveStatus.innerHTML = ""
+  }
 }
 
 const elements = {
+  topbarSessionLabel: document.getElementById("topbar-session-label"),
+  entryStage: document.getElementById("entry-stage"),
+  workspaceStage: document.getElementById("workspace-stage"),
   lessonForm: document.getElementById("lesson-form"),
+  generateLessonButton: document.getElementById("generate-lesson-button"),
   videoUrlInput: document.getElementById("video-url"),
   difficultySelect: document.getElementById("difficulty"),
   startSessionButton: document.getElementById("start-session-button"),
+  workspaceStateBadge: document.getElementById("workspace-state-badge"),
   replaySegmentButton: document.getElementById("replay-segment-button"),
   answerForm: document.getElementById("answer-form"),
-  answerInput: document.getElementById("answer-input"),
   submitAnswerButton: document.getElementById("submit-answer-button"),
+  nextSegmentButton: document.getElementById("next-segment-button"),
+  promptLabel: document.getElementById("prompt-label"),
   promptText: document.getElementById("prompt-text"),
   progressText: document.getElementById("progress-text"),
+  railProgressText: document.getElementById("rail-progress-text"),
   statusMessage: document.getElementById("status-message"),
+  workspaceStatusMessage: document.getElementById("workspace-status-message"),
   stateBadge: document.getElementById("state-badge"),
+  workspaceAccuracy: document.getElementById("workspace-accuracy"),
+  railWorkspaceAccuracy: document.getElementById("rail-workspace-accuracy"),
+  workspaceMode: document.getElementById("workspace-mode"),
+  railWorkspaceMode: document.getElementById("rail-workspace-mode"),
+  workspaceDifficulty: document.getElementById("workspace-difficulty"),
+  videoLoadingIndicator: document.getElementById("video-loading-indicator"),
   emptyState: document.getElementById("empty-state"),
   exerciseWorkspace: document.getElementById("exercise-workspace"),
   feedbackPanel: document.getElementById("feedback-panel"),
@@ -616,8 +1384,13 @@ const elements = {
   feedbackScore: document.getElementById("feedback-score"),
   feedbackAnswer: document.getElementById("feedback-answer"),
   resultsPanel: document.getElementById("results-panel"),
+  totalSegmentsStat: document.getElementById("total-segments-stat"),
   averageScore: document.getElementById("average-score"),
+  correctCountStat: document.getElementById("correct-count-stat"),
+  reviewCountStat: document.getElementById("review-count-stat"),
   resultsList: document.getElementById("results-list"),
+  practiceAnotherButton: document.getElementById("practice-another-button"),
+  sessionSaveStatus: document.getElementById("session-save-status"),
 }
 
 const playerController = new YouTubePlayerController("video-player")
@@ -627,5 +1400,5 @@ const appController = new AppController({
 })
 
 appController.initialize().catch((error) => {
-  elements.statusMessage.textContent = error.message
+  elements.statusMessage.textContent = error instanceof Error ? error.message : "Unexpected error."
 })
