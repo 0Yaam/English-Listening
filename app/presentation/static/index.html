@@ -78,23 +78,7 @@
       </section>
 
       <section id="workspace-stage" class="workspace-stage" hidden aria-labelledby="workspace-title">
-        <div class="workspace-header">
-          <div class="workspace-copy">
-            <p class="workspace-label">Practice session</p>
-            <h2 id="workspace-title" class="workspace-title">Focused Shadowing Workspace</h2>
-            <p class="workspace-description">
-              Listen, fill the blanks directly inside the sentence, then submit each segment to
-              continue.
-            </p>
-          </div>
-          <div class="workspace-header-actions">
-            <p id="workspace-state-badge" class="state-badge">Ready</p>
-            <button id="start-session-button" type="button" class="button-primary" disabled>
-              Start practice
-            </button>
-          </div>
-        </div>
-
+        <h2 id="workspace-title" class="sr-only">Shadowing practice workspace</h2>
         <div class="workspace-grid">
           <section class="video-panel" aria-labelledby="video-title">
             <div class="panel-heading">
@@ -102,7 +86,12 @@
                 <p class="panel-label">Video</p>
                 <h3 id="video-title">Listening Source</h3>
               </div>
-              <p class="panel-caption">The player pauses automatically at the end of each segment.</p>
+              <div class="video-panel-actions">
+                <p id="workspace-state-badge" class="state-badge">Ready</p>
+                <button id="start-session-button" type="button" class="button-primary" disabled>
+                  Start practice
+                </button>
+              </div>
             </div>
             <div class="video-shell">
               <div id="video-player" class="player-host" aria-label="YouTube player"></div>
@@ -115,86 +104,10 @@
                 Loading video...
               </p>
             </div>
-            <dl class="video-status-strip" aria-label="Session status">
-              <div class="video-status-item">
-                <dt>Current segment</dt>
-                <dd id="progress-text">Segment 1 / 1</dd>
-              </div>
-              <div class="video-status-item">
-                <dt>Accuracy</dt>
-                <dd id="workspace-accuracy">--</dd>
-              </div>
-              <div class="video-status-item">
-                <dt>Status</dt>
-                <dd id="workspace-mode">Waiting</dd>
-              </div>
-            </dl>
           </section>
 
-          <aside class="workspace-rail" aria-label="Study status">
-            <section class="rail-section rail-section-summary">
-              <p class="panel-label">Session overview</p>
-              <dl class="rail-metrics">
-                <div class="rail-metric">
-                  <dt>Progress</dt>
-                  <dd id="rail-progress-text">Segment 1 / 1</dd>
-                </div>
-                <div class="rail-metric">
-                  <dt>Current score</dt>
-                  <dd id="rail-workspace-accuracy">--</dd>
-                </div>
-                <div class="rail-metric">
-                  <dt>Status</dt>
-                  <dd id="rail-workspace-mode">Waiting</dd>
-                </div>
-                <div class="rail-metric">
-                  <dt>Difficulty</dt>
-                  <dd id="workspace-difficulty">Standard</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section class="rail-section">
-              <p class="panel-label">Shortcuts</p>
-              <ul class="shortcut-list">
-                <li><kbd>Enter</kbd><span>Submit current line</span></li>
-                <li><kbd>R</kbd><span>Replay current segment</span></li>
-                <li><kbd>Space</kbd><span>Resume when ready</span></li>
-              </ul>
-            </section>
-
-            <section class="rail-section">
-              <p class="panel-label">Controls</p>
-              <div class="rail-actions">
-                <button id="replay-segment-button" type="button" class="button-ghost" disabled>
-                  Replay segment
-                </button>
-              </div>
-            </section>
-          </aside>
-
           <section class="practice-panel" aria-labelledby="exercise-title">
-            <div class="panel-heading">
-              <div>
-                <p class="panel-label">Fill Exercise</p>
-                <h3 id="exercise-title">Complete the sentence inline</h3>
-              </div>
-              <p class="panel-caption">
-                Type directly inside the sentence instead of using a separate textarea.
-              </p>
-            </div>
-
-            <div class="practice-status-row">
-              <p class="practice-status-label">System status</p>
-              <p
-                id="workspace-status-message"
-                class="practice-status-message"
-                role="status"
-                aria-live="polite"
-              >
-                Ready when you are.
-              </p>
-            </div>
+            <h3 id="exercise-title" class="sr-only">Fill exercise</h3>
 
             <div id="empty-state" class="empty-state">
               <p>No exercise loaded yet. Paste a YouTube link and start a session to begin.</p>
@@ -207,15 +120,18 @@
                   <div id="prompt-text" class="blanked-text">
                     Sentence content will appear here.
                   </div>
-                  <p class="shortcut-inline-hint">
-                    Tab: next blank | Shift+Tab: previous blank | Enter: check answer | Space:
-                    replay segment | Left/Right: move between blanks
-                  </p>
                 </article>
 
                 <div class="practice-actions">
-                  <p class="practice-hint">Fill the missing words, then check the sentence to continue.</p>
                   <div class="practice-action-buttons">
+                    <button
+                      id="replay-segment-button"
+                      type="button"
+                      class="button-ghost"
+                      disabled
+                    >
+                      Replay segment
+                    </button>
                     <button id="submit-answer-button" type="submit" class="button-primary">
                       Check answer
                     </button>
@@ -232,7 +148,13 @@
                 </div>
               </form>
 
-              <aside id="feedback-panel" class="feedback-panel" hidden role="status" aria-live="polite">
+              <aside
+                id="feedback-panel"
+                class="feedback-panel sr-only"
+                hidden
+                role="status"
+                aria-live="polite"
+              >
                 <p id="feedback-label" class="feedback-label">Correct</p>
                 <p id="feedback-score" class="feedback-score"></p>
                 <p id="feedback-answer" class="feedback-answer"></p>
@@ -275,6 +197,17 @@
               </div>
             </section>
           </section>
+
+          <div class="workspace-mirror sr-only" aria-hidden="true">
+            <span id="progress-text">Segment 1 / 1</span>
+            <span id="workspace-accuracy">--</span>
+            <span id="workspace-mode">Waiting</span>
+            <span id="workspace-status-message">Ready when you are.</span>
+            <span id="rail-progress-text">Segment 1 / 1</span>
+            <span id="rail-workspace-accuracy">--</span>
+            <span id="rail-workspace-mode">Waiting</span>
+            <span id="workspace-difficulty">Standard</span>
+          </div>
         </div>
       </section>
     </main>

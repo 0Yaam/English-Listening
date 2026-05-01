@@ -628,37 +628,14 @@ class AppController {
     }
   }
 
-  renderFeedback({ item, scorePayload, isCorrect }) {
+  renderFeedback({ item }) {
     const blankResults = this.evaluateBlankInputs(item)
     this.applyBlankResults(blankResults)
-    this.elements.feedbackPanel.hidden = false
-    this.elements.feedbackPanel.dataset.variant = isCorrect ? "success" : "warning"
-    this.elements.feedbackLabel.textContent = isCorrect ? "Correct" : "Needs review"
-    this.elements.feedbackScore.textContent = `Accuracy: ${scorePayload.accuracy}%`
-    this.elements.feedbackAnswer.textContent = `Original sentence: ${item.original_text}`
-
-    const correctionsMarkup = blankResults
-      .map((result, index) => {
-        if (result.isCorrect || !result.expected) {
-          return ""
-        }
-
-        return `
-          <li class="feedback-correction-item">
-            <span class="feedback-correction-index">Blank ${index + 1}</span>
-            <p class="feedback-correction-copy">Expected <strong>${this.escapeHtml(result.expected)}</strong></p>
-          </li>
-        `
-      })
-      .filter(Boolean)
-      .join("")
-
-    if (correctionsMarkup) {
-      this.elements.feedbackPanel.insertAdjacentHTML(
-        "beforeend",
-        `<ul class="feedback-correction-list">${correctionsMarkup}</ul>`,
-      )
-    }
+    this.elements.feedbackPanel.hidden = true
+    this.elements.feedbackPanel.dataset.variant = ""
+    this.elements.feedbackLabel.textContent = ""
+    this.elements.feedbackScore.textContent = ""
+    this.elements.feedbackAnswer.textContent = ""
   }
 
   hideFeedback() {
