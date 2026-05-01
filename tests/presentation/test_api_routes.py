@@ -110,3 +110,12 @@ def test_index_page_is_served() -> None:
 
     assert response.status_code == 200
     assert "Shadowing Studio" in response.text
+
+
+def test_profile_page_is_served() -> None:
+    client = TestClient(app)
+
+    response = client.get("/profile")
+
+    assert response.status_code == 200
+    assert "User Profile & Transcript History" in response.text

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Profile & Transcript History</title>
+    <link rel="stylesheet" href="./profile.css" />
+  </head>
+  <body>
+    <div class="profile-shell">
+      <div class="profile-grid">
+        <aside class="profile-sidebar" aria-labelledby="profile-name">
+          <div class="profile-avatar" aria-hidden="true">LT</div>
+          <h1 id="profile-name" class="profile-name">Linh Tran</h1>
+          <p class="profile-email">linh.shadowing@example.com</p>
+          <p class="profile-joined">Joined on 12 Sep 2025</p>
+
+          <hr class="profile-divider" />
+
+          <section class="profile-metrics" aria-labelledby="profile-metrics-title">
+            <h2 id="profile-metrics-title" class="section-label">Learning Summary</h2>
+            <dl class="metrics-list">
+              <div class="metric-item">
+                <dt>Total Sessions</dt>
+                <dd>48</dd>
+              </div>
+              <div class="metric-item">
+                <dt>Saved Transcripts</dt>
+                <dd>21</dd>
+              </div>
+              <div class="metric-item">
+                <dt>Average Accuracy</dt>
+                <dd>91%</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <main class="profile-main">
+          <header class="profile-header">
+            <div class="profile-header-copy">
+              <p class="section-label">Transcript Workspace</p>
+              <h2 class="profile-title">Lich su hoc tap</h2>
+              <p class="profile-description">
+                Quan ly transcript da hoc va tao bai doc hieu tu noi dung video.
+              </p>
+            </div>
+
+            <form class="profile-controls" role="search">
+              <div class="control-field">
+                <label for="transcript-search" class="control-label">Search transcript</label>
+                <input
+                  id="transcript-search"
+                  class="control-input"
+                  type="search"
+                  placeholder="Search title or video ID"
+                  autocomplete="off"
+                />
+              </div>
+
+              <div class="control-field control-field-filter">
+                <label for="transcript-filter" class="control-label">Filter</label>
+                <select id="transcript-filter" class="control-select">
+                  <option value="All">All</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Quiz Ready">Quiz Ready</option>
+                  <option value="Quiz Generated">Quiz Generated</option>
+                </select>
+              </div>
+            </form>
+          </header>
+
+          <div class="transcript-layout">
+            <section class="transcript-list" aria-labelledby="transcript-list-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="transcript-list-title">Transcript History</h2>
+                  <p id="transcript-summary" class="panel-subtext">
+                    Dang tai du lieu transcript history.
+                  </p>
+                </div>
+              </div>
+
+              <div class="transcript-table" role="table" aria-label="Transcript history">
+                <div class="transcript-table-head" role="row" aria-hidden="true">
+                  <span>Video</span>
+                  <span>Title / Source</span>
+                  <span>Completed</span>
+                  <span>Words</span>
+                  <span>Accuracy</span>
+                  <span>Status</span>
+                  <span>Actions</span>
+                </div>
+                <div id="transcript-rows" class="transcript-table-body"></div>
+              </div>
+            </section>
+
+            <div class="transcript-sidepanel">
+              <section class="preview-panel" aria-labelledby="preview-panel-title">
+                <div class="panel-heading">
+                  <div>
+                    <h2 id="preview-panel-title">Transcript Preview</h2>
+                    <p class="panel-subtext">
+                      Session duoc chon se hien noi dung transcript o day.
+                    </p>
+                  </div>
+                </div>
+                <div id="preview-panel-content" class="panel-body" aria-live="polite"></div>
+              </section>
+
+              <section class="quiz-panel" aria-labelledby="quiz-panel-title">
+                <div class="panel-heading">
+                  <div>
+                    <h2 id="quiz-panel-title">Reading Quiz</h2>
+                    <p class="panel-subtext">
+                      Sinh cau hoi doc hieu tu transcript da chon.
+                    </p>
+                  </div>
+                </div>
+                <div id="quiz-panel-content" class="panel-body" aria-live="polite"></div>
+              </section>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script src="./profile.js" defer></script>
+  </body>
+</html>
