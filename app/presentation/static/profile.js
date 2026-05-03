@@ -24,6 +24,9 @@ const state = {
   quizNoticeTone: "error",
   quizDifficulty: "medium",
   quizQuestionType: "mixed",
+  activePreviewTab: "transcript",
+  isQuizPracticeActive: false,
+  activeHistoryAttemptId: null,
   isSubmittingAttempt: false,
   quizSessionId: null,
   currentQuizId: null,
@@ -225,6 +228,8 @@ const clearCurrentQuizState = () => {
   state.currentQuizId = null
   state.currentQuizQuestions = []
   state.selectedAnswersByQuestionId = {}
+  state.isQuizPracticeActive = false
+  state.activeHistoryAttemptId = null
   state.isSubmittingAttempt = false
 }
 
@@ -301,34 +306,23 @@ const getWrongAnswerCount = (attempt) => {
   return Math.max(0, Number(attempt.total_questions ?? 0) - Number(attempt.correct_count ?? 0))
 }
 
-const setActiveReviewAttempt = (attempt) => {
-  if (!attempt) {
+const syncActiveHistoryAttempt = (history) => {
+  if (history.length === 0) {
+    state.activeHistoryAttemptId = null
     return
   }
 
-  state.currentQuizId = attempt.quiz_id
-  state.currentQuizQuestions = attempt.results.map((result) => ({
-    id: result.question_id,
-    question: result.question,
-    options: result.options,
-    correct_answer: result.correct_answer,
-    explanation: result.explanation,
-  }))
-  state.quizState = "generated"
-  state.attemptResultsByQuizId.set(attempt.quiz_id, attempt)
-  state.selectedAnswersByQuestionId = Object.fromEntries(
-    attempt.results
-      .filter((result) => Boolean(result.selected_answer))
-      .map((result) => [result.question_id, result.selected_answer]),
-  )
-  state.quizNotice = ""
-  state.quizNoticeTone = "error"
+  if (!history.some((attempt) => attempt.attempt_id === state.activeHistoryAttemptId)) {
+    state.activeHistoryAttemptId = history[0].attempt_id
+  }
 }
 
 const startNewQuizAttempt = () => {
   if (state.currentQuizId) {
     state.attemptResultsByQuizId.delete(state.currentQuizId)
   }
+  state.isQuizPracticeActive = true
+  state.activePreviewTab = "transcript"
   state.selectedAnswersByQuestionId = {}
   state.quizNotice = ""
   state.quizNoticeTone = "error"
@@ -351,7 +345,7 @@ const getQuizNoticeClassName = () => {
     : "question-note quiz-notice"
 }
 
-const buildQuizAttemptHistoryMarkup = ({ activeAttemptId } = {}) => {
+const buildQuizAttemptHistoryMarkup = ({ activeAttemptId: fallbackActiveAttemptId } = {}) => {
   const history = getCurrentAttemptHistory()
   const historyError = getCurrentAttemptHistoryError()
 
@@ -388,6 +382,7 @@ const buildQuizAttemptHistoryMarkup = ({ activeAttemptId } = {}) => {
     `
   }
 
+  const resolvedActiveAttemptId = state.activeHistoryAttemptId ?? fallbackActiveAttemptId
   return `
     <section class="quiz-history" aria-label="Quiz attempt history">
       <div class="quiz-history-header">
@@ -398,7 +393,8 @@ const buildQuizAttemptHistoryMarkup = ({ activeAttemptId } = {}) => {
         ${history
           .map((attempt, index) => {
             const wrongCount = getWrongAnswerCount(attempt)
-            const isActive = attempt.attempt_id === activeAttemptId
+            const isActive = attempt.attempt_id === resolvedActiveAttemptId
+            const wrongResults = attempt.results.filter((result) => !result.is_correct)
             return `
               <button
                 type="button"
@@ -415,6 +411,33 @@ const buildQuizAttemptHistoryMarkup = ({ activeAttemptId } = {}) => {
                   <span>${wrongCount} wrong</span>
                 </span>
               </button>
+              ${
+                isActive
+                  ? `
+                    <div class="quiz-history-review">
+                      ${
+                        wrongResults.length === 0
+                          ? `<p class="question-note quiz-save-note">All answers were correct.</p>`
+                          : wrongResults
+                              .map((result, resultIndex) => {
+                                return `
+                                  <article class="quiz-history-review-item">
+                                    <span class="quiz-question-index">Review ${resultIndex + 1}</span>
+                                    <h4>${result.question}</h4>
+                                    <p>
+                                      Your answer <strong>${result.selected_answer ?? "--"}</strong>,
+                                      correct answer <strong>${result.correct_answer}</strong>.
+                                    </p>
+                                    <p>${result.explanation}</p>
+                                  </article>
+                                `
+                              })
+                              .join("")
+                      }
+                    </div>
+                  `
+                  : ""
+              }
             `
           })
           .join("")}
@@ -577,13 +600,14 @@ const renderPreviewPanel = () => {
     : false
   const shouldShowPreviewQuiz =
     selectedSession &&
+    state.isQuizPracticeActive &&
     state.quizSessionId === selectedSession.sessionId &&
     state.quizState === "generated" &&
     state.currentQuizQuestions.length > 0
   const submittedPreviewAttempt = state.currentQuizId
     ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null
     : null
-  const previewAttemptHistoryMarkup = shouldShowPreviewQuiz
+  const previewAttemptHistoryMarkup = selectedSession
     ? buildQuizAttemptHistoryMarkup({ activeAttemptId: submittedPreviewAttempt?.attempt_id })
     : ""
   const submittedPreviewResults = new Map(
@@ -618,7 +642,6 @@ const renderPreviewPanel = () => {
             ${state.isSubmittingAttempt ? "Submitting..." : submittedPreviewAttempt ? "Submitted" : "Submit Quiz"}
           </button>
         </div>
-        ${previewAttemptHistoryMarkup}
         <div class="quiz-list">
           ${state.currentQuizQuestions
             .map((question, index) => {
@@ -727,8 +750,15 @@ const renderPreviewPanel = () => {
 
   if (!selectedSession) {
     elements.previewPanel.innerHTML = `
-      <div class="state-block">
-        <p class="state-copy">Chon mot transcript trong danh sach de xem preview va sinh reading quiz.</p>
+      <div class="quiz-empty-state">
+        <span class="quiz-empty-kicker">Reading workspace</span>
+        <h3>Select a transcript</h3>
+        <p>Choose a lesson from Transcript History to preview the transcript, generate a focused quiz, and review saved attempts.</p>
+        <div class="quiz-empty-steps">
+          <span>1. Pick a lesson</span>
+          <span>2. Review transcript</span>
+          <span>3. Generate or inspect attempts</span>
+        </div>
       </div>
     `
     return
@@ -763,58 +793,87 @@ const renderPreviewPanel = () => {
 
   elements.previewPanel.innerHTML = `
     <div class="preview-state">
-      <div class="preview-header">
-        <div>
-          <h3 class="preview-video-title">${selectedSession.videoTitle}</h3>
-        </div>
-        <span class="score-badge">${formatPercent(selectedSession.accuracyScore)} accuracy</span>
-      </div>
-      <div class="preview-meta">
-        <span>YouTube / ${selectedSession.videoId}</span>
-        <span>${formatDate(selectedSession.completedAt)}</span>
-        <span>Session ${selectedSession.sessionId}</span>
-      </div>
-      <div class="preview-transcript">
-        <p>${selectedSession.rawText || "Transcript detail is not available yet."}</p>
-      </div>
-      <div class="preview-actions">
-        <div class="quiz-generation-controls" aria-label="Quiz generation settings">
-          <label class="quiz-control-field" for="generate-quiz-difficulty">
-            <span>Difficulty</span>
-            <select
-              id="generate-quiz-difficulty"
-              class="control-select"
-              ${isGeneratingSelectedQuiz ? "disabled" : ""}
-            >
-              <option value="easy" ${state.quizDifficulty === "easy" ? "selected" : ""}>Easy</option>
-              <option value="medium" ${state.quizDifficulty === "medium" ? "selected" : ""}>Medium</option>
-              <option value="hard" ${state.quizDifficulty === "hard" ? "selected" : ""}>Hard</option>
-            </select>
-          </label>
-          <label class="quiz-control-field" for="generate-quiz-question-type">
-            <span>Question Type</span>
-            <select
-              id="generate-quiz-question-type"
-              class="control-select"
-              ${isGeneratingSelectedQuiz ? "disabled" : ""}
-            >
-              <option value="mixed" ${state.quizQuestionType === "mixed" ? "selected" : ""}>Mixed</option>
-              <option value="inference" ${state.quizQuestionType === "inference" ? "selected" : ""}>Inference</option>
-              <option value="vocabulary" ${state.quizQuestionType === "vocabulary" ? "selected" : ""}>Vocabulary</option>
-              <option value="main_idea" ${state.quizQuestionType === "main_idea" ? "selected" : ""}>Main idea</option>
-              <option value="detail" ${state.quizQuestionType === "detail" ? "selected" : ""}>Detail</option>
-            </select>
-          </label>
-        </div>
+      <div class="preview-tabs" role="tablist" aria-label="Selected lesson panel">
         <button
-          id="generate-reading-quiz-button"
           type="button"
-          class="button-primary"
-          ${isGeneratingSelectedQuiz ? "disabled" : ""}
+          class="preview-tab ${state.activePreviewTab === "transcript" ? "is-active" : ""}"
+          data-preview-tab="transcript"
+          role="tab"
+          aria-selected="${state.activePreviewTab === "transcript"}"
         >
-          ${isGeneratingSelectedQuiz ? "Generating..." : "Generate Reading Quiz"}
+          Transcript Preview
+        </button>
+        <button
+          type="button"
+          class="preview-tab ${state.activePreviewTab === "history" ? "is-active" : ""}"
+          data-preview-tab="history"
+          role="tab"
+          aria-selected="${state.activePreviewTab === "history"}"
+        >
+          Attempt History
         </button>
       </div>
+      ${
+        state.activePreviewTab === "history"
+          ? `
+            ${state.quizNotice ? `<p class="${getQuizNoticeClassName()}" role="status">${state.quizNotice}</p>` : ""}
+            ${previewAttemptHistoryMarkup}
+          `
+          : `
+            <div class="preview-header">
+              <div>
+                <h3 class="preview-video-title">${selectedSession.videoTitle}</h3>
+              </div>
+              <span class="score-badge">${formatPercent(selectedSession.accuracyScore)} accuracy</span>
+            </div>
+            <div class="preview-meta">
+              <span>YouTube / ${selectedSession.videoId}</span>
+              <span>${formatDate(selectedSession.completedAt)}</span>
+              <span>Session ${selectedSession.sessionId}</span>
+            </div>
+            <div class="preview-transcript">
+              <p>${selectedSession.rawText || "Transcript detail is not available yet."}</p>
+            </div>
+            <div class="preview-actions">
+              <div class="quiz-generation-controls" aria-label="Quiz generation settings">
+                <label class="quiz-control-field" for="generate-quiz-difficulty">
+                  <span>Difficulty</span>
+                  <select
+                    id="generate-quiz-difficulty"
+                    class="control-select"
+                    ${isGeneratingSelectedQuiz ? "disabled" : ""}
+                  >
+                    <option value="easy" ${state.quizDifficulty === "easy" ? "selected" : ""}>Easy</option>
+                    <option value="medium" ${state.quizDifficulty === "medium" ? "selected" : ""}>Medium</option>
+                    <option value="hard" ${state.quizDifficulty === "hard" ? "selected" : ""}>Hard</option>
+                  </select>
+                </label>
+                <label class="quiz-control-field" for="generate-quiz-question-type">
+                  <span>Question Type</span>
+                  <select
+                    id="generate-quiz-question-type"
+                    class="control-select"
+                    ${isGeneratingSelectedQuiz ? "disabled" : ""}
+                  >
+                    <option value="mixed" ${state.quizQuestionType === "mixed" ? "selected" : ""}>Mixed</option>
+                    <option value="inference" ${state.quizQuestionType === "inference" ? "selected" : ""}>Inference</option>
+                    <option value="vocabulary" ${state.quizQuestionType === "vocabulary" ? "selected" : ""}>Vocabulary</option>
+                    <option value="main_idea" ${state.quizQuestionType === "main_idea" ? "selected" : ""}>Main idea</option>
+                    <option value="detail" ${state.quizQuestionType === "detail" ? "selected" : ""}>Detail</option>
+                  </select>
+                </label>
+              </div>
+              <button
+                id="generate-reading-quiz-button"
+                type="button"
+                class="button-primary"
+                ${isGeneratingSelectedQuiz ? "disabled" : ""}
+              >
+                ${isGeneratingSelectedQuiz ? "Generating..." : "Generate Reading Quiz"}
+              </button>
+            </div>
+          `
+      }
       ${previewQuizMarkup}
     </div>
   `
@@ -825,13 +884,14 @@ const renderQuizPanel = () => {
   const selectedSession = getSelectedSession()
   const isPreviewHostingQuiz =
     selectedSession &&
+    state.isQuizPracticeActive &&
     state.quizSessionId === selectedSession.sessionId &&
     state.quizState === "generated" &&
     state.currentQuizQuestions.length > 0
 
-  document.body.classList.toggle("is-preview-quiz-active", Boolean(isPreviewHostingQuiz))
+  document.body.classList.toggle("is-preview-quiz-active", Boolean(selectedSession))
 
-  if (isPreviewHostingQuiz) {
+  if (selectedSession) {
     elements.quizPanel.innerHTML = ""
     return
   }
@@ -847,8 +907,15 @@ const renderQuizPanel = () => {
 
   if (!selectedSession) {
     elements.quizPanel.innerHTML = `
-      <div class="state-block state-empty">
-        <p class="state-copy">Select a transcript to generate quiz.</p>
+      <div class="quiz-empty-state quiz-empty-state-secondary">
+        <span class="quiz-empty-kicker">Reading Quiz</span>
+        <h3>No lesson selected</h3>
+        <p>Select a transcript first. This panel will organize Transcript Preview and Attempt History before you start a new quiz.</p>
+        <div class="quiz-empty-steps">
+          <span>Preview transcript</span>
+          <span>Check attempts</span>
+          <span>Generate focused questions</span>
+        </div>
       </div>
     `
     return
@@ -1076,7 +1143,8 @@ const renderQuizPanel = () => {
       if (!attempt) {
         return
       }
-      setActiveReviewAttempt(attempt)
+      state.activeHistoryAttemptId = attempt.attempt_id
+      state.quizNotice = ""
       renderPreviewPanel()
       renderQuizPanel()
     })
@@ -1235,6 +1303,7 @@ const loadAttemptHistoryForSession = async (sessionId, { force = false } = {}) =
         return new Date(right.submitted_at).getTime() - new Date(left.submitted_at).getTime()
       })
     state.attemptHistoryBySessionId.set(sessionId, history)
+    syncActiveHistoryAttempt(history)
   } catch (error) {
     state.attemptHistoryErrorsBySessionId.set(
       sessionId,
@@ -1273,6 +1342,9 @@ const handleSelectSession = async (sessionId, { generateAfterSelect = false } = 
   const selectionRequestId = state.activeSelectionRequestId + 1
   state.activeSelectionRequestId = selectionRequestId
   state.selectedSessionId = sessionId
+  state.activePreviewTab = "transcript"
+  state.isQuizPracticeActive = false
+  state.activeHistoryAttemptId = null
   if (state.quizSessionId !== sessionId) {
     clearCurrentQuizState()
   }
@@ -1355,6 +1427,8 @@ const generateQuizForSelectedSession = async () => {
   const sessionId = selectedSession.sessionId
 
   state.generatingSessionIds.add(sessionId)
+  state.isQuizPracticeActive = true
+  state.activePreviewTab = "transcript"
   state.quizState = "loading"
   state.quizError = ""
   state.quizSessionId = sessionId
@@ -1463,6 +1537,9 @@ const submitCurrentQuizAttempt = async () => {
     if (state.selectedSessionId) {
       await loadAttemptHistoryForSession(state.selectedSessionId, { force: true })
     }
+    state.activeHistoryAttemptId = payload.attempt_id
+    state.activePreviewTab = "history"
+    state.isQuizPracticeActive = false
     state.quizNotice = "Attempt saved to history."
     state.quizNoticeTone = "success"
     await refreshProfileSummary()
@@ -1485,6 +1562,19 @@ const bindEvents = () => {
   elements.previewPanel.addEventListener("click", (event) => {
     const target = event.target
     if (!(target instanceof Element)) {
+      return
+    }
+
+    const previewTab = target.closest("[data-preview-tab]")
+    if (previewTab) {
+      event.preventDefault()
+      const nextTab = previewTab.dataset.previewTab
+      if (nextTab === "transcript" || nextTab === "history") {
+        state.activePreviewTab = nextTab
+        state.quizNotice = ""
+        renderPreviewPanel()
+        renderQuizPanel()
+      }
       return
     }
 
@@ -1514,7 +1604,8 @@ const bindEvents = () => {
       if (!attempt) {
         return
       }
-      setActiveReviewAttempt(attempt)
+      state.activeHistoryAttemptId = attempt.attempt_id
+      state.quizNotice = ""
       renderPreviewPanel()
       renderQuizPanel()
       return
