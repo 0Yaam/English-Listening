@@ -48,6 +48,8 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
             site_url=settings.openrouter_site_url,
             app_title=settings.openrouter_app_title,
             difficulty=settings.openrouter_quiz_difficulty,
+            timeout_seconds=settings.openrouter_timeout_seconds,
+            max_tokens=settings.openrouter_max_tokens,
         )
 
     return MockLLMQuizAdapter()

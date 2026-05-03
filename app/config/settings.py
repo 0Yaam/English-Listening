@@ -83,6 +83,12 @@ class Settings:
     openrouter_quiz_difficulty: str = field(
         default_factory=lambda: os.getenv("OPENROUTER_QUIZ_DIFFICULTY", "challenging"),
     )
+    openrouter_timeout_seconds: int = field(
+        default_factory=lambda: int(os.getenv("OPENROUTER_TIMEOUT_SECONDS", "90")),
+    )
+    openrouter_max_tokens: int = field(
+        default_factory=lambda: int(os.getenv("OPENROUTER_MAX_TOKENS", "1800")),
+    )
     ai_quiz_question_count: int = field(
         default_factory=lambda: int(os.getenv("AI_QUIZ_QUESTION_COUNT", "5")),
     )

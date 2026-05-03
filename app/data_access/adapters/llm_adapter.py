@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any
 from typing import Literal
+import socket
 from urllib import error
 from urllib import request
 
@@ -279,12 +280,16 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         site_url: str | None = None,
         app_title: str | None = None,
         difficulty: str = "challenging",
+        timeout_seconds: int = 90,
+        max_tokens: int = 1800,
     ) -> None:
         self._api_key = api_key
         self._model = model
         self._site_url = site_url
         self._app_title = app_title
         self._difficulty = difficulty
+        self._timeout_seconds = timeout_seconds
+        self._max_tokens = max_tokens
 
     def generate_questions(
         self,
@@ -312,6 +317,7 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                 },
             ],
             "temperature": 0.35,
+            "max_tokens": self._max_tokens,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -332,6 +338,7 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
             url="https://openrouter.ai/api/v1/chat/completions",
             headers=self._build_headers(),
             payload=payload,
+            timeout_seconds=self._timeout_seconds,
         )
 
         try:
@@ -361,15 +368,20 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        timeout_seconds: int,
     ) -> dict[str, Any]:
         body = json.dumps(payload).encode("utf-8")
         http_request = request.Request(url, data=body, headers=headers, method="POST")
         try:
-            with request.urlopen(http_request, timeout=60) as response:
+            with request.urlopen(http_request, timeout=timeout_seconds) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             error_message = _read_http_error_message(exc)
             raise LLMQuizProviderError(f"OpenRouter request failed: {error_message}") from exc
+        except (TimeoutError, socket.timeout) as exc:
+            raise LLMQuizProviderError(
+                f"OpenRouter request timed out after {timeout_seconds} seconds.",
+            ) from exc
         except error.URLError as exc:
             raise LLMQuizProviderError("Could not reach OpenRouter.") from exc
         except json.JSONDecodeError as exc:

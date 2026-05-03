@@ -40,10 +40,12 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        timeout_seconds: int,
     ) -> dict[str, Any]:
         captured["url"] = url
         captured["headers"] = headers
         captured["payload"] = payload
+        captured["timeout_seconds"] = timeout_seconds
         return {
             "choices": [
                 {
@@ -77,6 +79,8 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
         site_url="https://example.test",
         app_title="Quiz App",
         difficulty="advanced inference",
+        timeout_seconds=75,
+        max_tokens=1200,
     )
 
     questions = adapter.generate_questions(
@@ -89,6 +93,8 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
     assert captured["headers"]["HTTP-Referer"] == "https://example.test"
     assert captured["headers"]["X-OpenRouter-Title"] == "Quiz App"
     assert captured["payload"]["model"] == "openai/gpt-4o-mini"
+    assert captured["payload"]["max_tokens"] == 1200
+    assert captured["timeout_seconds"] == 75
     assert captured["payload"]["response_format"]["type"] == "json_schema"
     assert captured["payload"]["response_format"]["json_schema"]["name"] == "reading_quiz"
     assert "Difficulty target: advanced inference" in captured["payload"]["messages"][1]["content"]
