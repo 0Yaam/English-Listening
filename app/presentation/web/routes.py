@@ -24,6 +24,14 @@ def get_profile_page() -> FileResponse:
     )
 
 
+@router.get("/vocabulary")
+def get_vocabulary_page() -> FileResponse:
+    return FileResponse(
+        _STATIC_DIR / "vocabulary.html",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.get("/login")
 def get_login_page() -> RedirectResponse:
     return RedirectResponse(url="/static/login.html")

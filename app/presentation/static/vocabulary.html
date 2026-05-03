@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vocabulary Lab</title>
+    <link rel="stylesheet" href="/static/vocabulary.css?v=20260503a" />
+  </head>
+  <body>
+    <div class="vocab-shell">
+      <header class="vocab-topbar">
+        <div class="vocab-brand">
+          <div id="vocab-avatar" class="vocab-avatar" aria-hidden="true">--</div>
+          <div>
+            <h1>Vocabulary Lab</h1>
+            <p id="vocab-userline">Loading learner</p>
+          </div>
+        </div>
+        <nav class="vocab-nav" aria-label="Vocabulary navigation">
+          <a href="/profile" class="button-ghost">Dashboard</a>
+          <button id="vocab-sign-out-button" type="button" class="button-text">Sign out</button>
+        </nav>
+      </header>
+
+      <main class="vocab-layout">
+        <aside class="vocab-session-panel" aria-labelledby="vocab-session-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="vocab-session-title">Transcript Source</h2>
+              <p id="vocab-session-summary" class="panel-subtext">Loading transcript list.</p>
+            </div>
+          </div>
+
+          <div class="vocab-controls">
+            <label class="control-field" for="vocab-session-search">
+              <span class="control-label">Search transcript</span>
+              <input
+                id="vocab-session-search"
+                class="control-input"
+                type="search"
+                placeholder="Search title or video ID"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+
+          <div id="vocab-session-list" class="vocab-session-list" aria-live="polite"></div>
+        </aside>
+
+        <section class="vocab-word-panel" aria-labelledby="vocab-word-title">
+          <div class="vocab-word-header">
+            <div>
+              <span class="section-label">Selected transcript</span>
+              <h2 id="vocab-word-title">Choose a transcript</h2>
+              <p id="vocab-word-subtitle" class="panel-subtext">
+                Vocabulary will be extracted from the transcript context.
+              </p>
+            </div>
+            <button id="vocab-refresh-button" type="button" class="button-ghost" disabled>
+              Refresh Words
+            </button>
+          </div>
+
+          <div class="vocab-filterbar">
+            <label class="control-field" for="vocab-word-search">
+              <span class="control-label">Search word</span>
+              <input
+                id="vocab-word-search"
+                class="control-input"
+                type="search"
+                placeholder="Search vocabulary"
+                autocomplete="off"
+              />
+            </label>
+            <label class="control-field" for="vocab-difficulty-filter">
+              <span class="control-label">Difficulty</span>
+              <select id="vocab-difficulty-filter" class="control-select">
+                <option value="all">All</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </label>
+            <label class="toggle-field">
+              <input id="vocab-saved-only" type="checkbox" />
+              <span>Saved only</span>
+            </label>
+          </div>
+
+          <div id="vocab-word-content" class="vocab-word-content" aria-live="polite"></div>
+        </section>
+
+        <aside class="vocab-quiz-panel" aria-labelledby="vocab-quiz-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="vocab-quiz-title">Mini Quiz</h2>
+              <p id="vocab-quiz-summary" class="panel-subtext">No transcript selected.</p>
+            </div>
+            <button id="vocab-start-quiz-button" type="button" class="button-primary" disabled>
+              Start
+            </button>
+          </div>
+          <div id="vocab-quiz-content" class="vocab-quiz-content" aria-live="polite"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/static/vocabulary.js?v=20260503a"></script>
+  </body>
+</html>
