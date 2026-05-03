@@ -44,6 +44,8 @@ class QuizGenerationService:
         *,
         session_id: int,
         user_id: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> Quiz:
         session = self._session_repository.get_session_for_user(
             session_id=session_id,
@@ -63,6 +65,8 @@ class QuizGenerationService:
         questions = self._llm_provider.generate_questions(
             raw_text=transcript.raw_text,
             question_count=self._question_count,
+            difficulty=difficulty,
+            question_type=question_type,
         )
         if len(questions) != self._question_count:
             raise LLMQuizOutputValidationError(

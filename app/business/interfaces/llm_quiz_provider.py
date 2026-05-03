@@ -13,5 +13,7 @@ class LLMQuizProvider(ABC):
         *,
         raw_text: str,
         question_count: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
         """Generate validated quiz questions from a transcript."""

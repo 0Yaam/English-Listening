@@ -14,6 +14,7 @@ from app.business.services.session_history_service import SessionHistoryService
 from app.presentation.dependencies.services import get_quiz_service
 from app.presentation.dependencies.services import get_quiz_generation_service
 from app.presentation.dependencies.services import get_session_history_service
+from app.presentation.schemas.quiz_attempts import QuizAttemptHistoryItemResponse
 from app.presentation.schemas.quiz_attempts import SubmitQuizAttemptRequest
 from app.presentation.schemas.quiz_attempts import SubmitQuizAttemptResponse
 from app.presentation.schemas.quizzes import GenerateQuizResponse
@@ -56,6 +57,32 @@ def get_quiz_detail(
         )
     session, _, _ = session_result
     return GenerateQuizResponse.from_domain(quiz=quiz, session=session)
+
+
+@router.get("/{quiz_id}/attempts", response_model=list[QuizAttemptHistoryItemResponse])
+def list_quiz_attempts(
+    quiz_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    quiz_service: Annotated[QuizService, Depends(get_quiz_service)],
+) -> list[QuizAttemptHistoryItemResponse]:
+    quiz = quiz_service.get_quiz_for_user(
+        quiz_id=quiz_id,
+        user_id=current_user.id,
+    )
+    if quiz is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quiz not found.",
+        )
+
+    attempts = quiz_service.list_attempts_for_quiz(
+        quiz_id=quiz_id,
+        user_id=current_user.id,
+    )
+    return [
+        QuizAttemptHistoryItemResponse.from_domain(quiz=quiz, attempt=attempt)
+        for attempt in attempts
+    ]
 
 
 @router.post("/{quiz_id}/submit", response_model=SubmitQuizAttemptResponse)

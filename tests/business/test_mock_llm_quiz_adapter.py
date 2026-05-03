@@ -86,6 +86,8 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
     questions = adapter.generate_questions(
         raw_text="Short daily routines help learners practice consistently.",
         question_count=1,
+        difficulty="hard",
+        question_type="vocabulary",
     )
 
     assert captured["url"] == "https://openrouter.ai/api/v1/chat/completions"
@@ -97,5 +99,6 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
     assert captured["timeout_seconds"] == 75
     assert captured["payload"]["response_format"]["type"] == "json_schema"
     assert captured["payload"]["response_format"]["json_schema"]["name"] == "reading_quiz"
-    assert "Difficulty target: advanced inference" in captured["payload"]["messages"][1]["content"]
+    assert "Difficulty target: hard" in captured["payload"]["messages"][1]["content"]
+    assert "Question focus: vocabulary" in captured["payload"]["messages"][1]["content"]
     assert questions[0].question == "What is the main point?"

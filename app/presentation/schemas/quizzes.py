@@ -30,6 +30,13 @@ class QuizQuestionGenerated(BaseModel):
     explanation: str = Field(..., min_length=1)
 
 
+class GenerateQuizRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
+    question_type: Literal["mixed", "inference", "vocabulary", "main_idea", "detail"] = "mixed"
+
+
 class QuizQuestionResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 

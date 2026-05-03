@@ -21,6 +21,9 @@ const state = {
   quizState: "empty",
   quizError: "",
   quizNotice: "",
+  quizNoticeTone: "error",
+  quizDifficulty: "medium",
+  quizQuestionType: "mixed",
   isSubmittingAttempt: false,
   quizSessionId: null,
   currentQuizId: null,
@@ -31,6 +34,9 @@ const state = {
   sessionDetailsById: new Map(),
   quizzesBySessionId: new Map(),
   attemptResultsByQuizId: new Map(),
+  attemptHistoryBySessionId: new Map(),
+  loadingAttemptHistorySessionIds: new Set(),
+  attemptHistoryErrorsBySessionId: new Map(),
 }
 
 const elements = {
@@ -62,6 +68,20 @@ const formatDate = (isoDate) => {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  }).format(new Date(isoDate))
+}
+
+const formatDateTime = (isoDate) => {
+  if (!isoDate) {
+    return "--"
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(isoDate))
 }
 
@@ -200,6 +220,7 @@ const clearCurrentQuizState = () => {
   state.quizState = "empty"
   state.quizError = ""
   state.quizNotice = ""
+  state.quizNoticeTone = "error"
   state.quizSessionId = null
   state.currentQuizId = null
   state.currentQuizQuestions = []
@@ -214,7 +235,23 @@ const applyQuizToState = (quiz) => {
   state.quizState = quiz.questions.length > 0 ? "generated" : "empty"
   state.quizError = ""
   state.quizNotice = ""
+  state.quizNoticeTone = "error"
   state.selectedAnswersByQuestionId = {}
+}
+
+const scrollPreviewQuizIntoView = () => {
+  window.requestAnimationFrame(() => {
+    const quizElement = elements.previewPanel.querySelector(".preview-generated-quiz")
+    if (!quizElement) {
+      return
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    quizElement.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    })
+  })
 }
 
 const restoreCachedQuizForSession = (sessionId) => {
@@ -242,6 +279,62 @@ const getCurrentSubmittedAttempt = () => {
   return state.currentQuizId ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null : null
 }
 
+const getCurrentAttemptHistory = () => {
+  return state.selectedSessionId
+    ? state.attemptHistoryBySessionId.get(state.selectedSessionId) ?? []
+    : []
+}
+
+const isLoadingCurrentAttemptHistory = () => {
+  return state.selectedSessionId
+    ? state.loadingAttemptHistorySessionIds.has(state.selectedSessionId)
+    : false
+}
+
+const getCurrentAttemptHistoryError = () => {
+  return state.selectedSessionId
+    ? state.attemptHistoryErrorsBySessionId.get(state.selectedSessionId) ?? ""
+    : ""
+}
+
+const getWrongAnswerCount = (attempt) => {
+  return Math.max(0, Number(attempt.total_questions ?? 0) - Number(attempt.correct_count ?? 0))
+}
+
+const setActiveReviewAttempt = (attempt) => {
+  if (!attempt) {
+    return
+  }
+
+  state.currentQuizId = attempt.quiz_id
+  state.currentQuizQuestions = attempt.results.map((result) => ({
+    id: result.question_id,
+    question: result.question,
+    options: result.options,
+    correct_answer: result.correct_answer,
+    explanation: result.explanation,
+  }))
+  state.quizState = "generated"
+  state.attemptResultsByQuizId.set(attempt.quiz_id, attempt)
+  state.selectedAnswersByQuestionId = Object.fromEntries(
+    attempt.results
+      .filter((result) => Boolean(result.selected_answer))
+      .map((result) => [result.question_id, result.selected_answer]),
+  )
+  state.quizNotice = ""
+  state.quizNoticeTone = "error"
+}
+
+const startNewQuizAttempt = () => {
+  if (state.currentQuizId) {
+    state.attemptResultsByQuizId.delete(state.currentQuizId)
+  }
+  state.selectedAnswersByQuestionId = {}
+  state.quizNotice = ""
+  state.quizNoticeTone = "error"
+  state.isSubmittingAttempt = false
+}
+
 const getAnsweredQuestionCount = () => {
   return state.currentQuizQuestions.filter((question) => {
     return Boolean(state.selectedAnswersByQuestionId[question.id])
@@ -250,6 +343,84 @@ const getAnsweredQuestionCount = () => {
 
 const hasAnsweredEveryQuestion = () => {
   return state.currentQuizQuestions.length > 0 && getAnsweredQuestionCount() === state.currentQuizQuestions.length
+}
+
+const getQuizNoticeClassName = () => {
+  return state.quizNoticeTone === "success"
+    ? "question-note quiz-save-note"
+    : "question-note quiz-notice"
+}
+
+const buildQuizAttemptHistoryMarkup = ({ activeAttemptId } = {}) => {
+  const history = getCurrentAttemptHistory()
+  const historyError = getCurrentAttemptHistoryError()
+
+  if (isLoadingCurrentAttemptHistory()) {
+    return `
+      <section class="quiz-history" aria-label="Quiz attempt history">
+        <div class="quiz-history-header">
+          <h3>Attempt History</h3>
+          <span class="question-note">Loading attempts...</span>
+        </div>
+      </section>
+    `
+  }
+
+  if (historyError) {
+    return `
+      <section class="quiz-history" aria-label="Quiz attempt history">
+        <div class="quiz-history-header">
+          <h3>Attempt History</h3>
+          <span class="question-note quiz-notice">${historyError}</span>
+        </div>
+      </section>
+    `
+  }
+
+  if (history.length === 0) {
+    return `
+      <section class="quiz-history" aria-label="Quiz attempt history">
+        <div class="quiz-history-header">
+          <h3>Attempt History</h3>
+          <span class="question-note">No attempts yet.</span>
+        </div>
+      </section>
+    `
+  }
+
+  return `
+    <section class="quiz-history" aria-label="Quiz attempt history">
+      <div class="quiz-history-header">
+        <h3>Attempt History</h3>
+        <span class="question-note">${history.length} saved attempt${history.length === 1 ? "" : "s"}</span>
+      </div>
+      <div class="quiz-history-list">
+        ${history
+          .map((attempt, index) => {
+            const wrongCount = getWrongAnswerCount(attempt)
+            const isActive = attempt.attempt_id === activeAttemptId
+            return `
+              <button
+                type="button"
+                class="quiz-history-item ${isActive ? "is-active" : ""}"
+                data-preview-attempt-id="${attempt.attempt_id}"
+              >
+                <span class="quiz-history-main">
+                  <strong>Attempt ${history.length - index}</strong>
+                  <span>${formatDateTime(attempt.submitted_at)}</span>
+                </span>
+                <span class="quiz-history-score">
+                  <span class="score-badge">${formatPercent(attempt.score)}</span>
+                  <span>${attempt.correct_count}/${attempt.total_questions} correct</span>
+                  <span>${wrongCount} wrong</span>
+                </span>
+              </button>
+            `
+          })
+          .join("")}
+      </div>
+    </section>
+  `
 }
 
 const refreshProfileStatsInBackground = async () => {
@@ -412,6 +583,9 @@ const renderPreviewPanel = () => {
   const submittedPreviewAttempt = state.currentQuizId
     ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null
     : null
+  const previewAttemptHistoryMarkup = shouldShowPreviewQuiz
+    ? buildQuizAttemptHistoryMarkup({ activeAttemptId: submittedPreviewAttempt?.attempt_id })
+    : ""
   const submittedPreviewResults = new Map(
     (submittedPreviewAttempt?.results ?? []).map((item) => [item.question_id, item]),
   )
@@ -422,6 +596,15 @@ const renderPreviewPanel = () => {
           <button type="button" class="button-ghost" data-preview-quiz-action="regenerate">
             Regenerate Quiz
           </button>
+          ${
+            submittedPreviewAttempt
+              ? `
+                <button type="button" class="button-ghost" data-preview-quiz-action="retake">
+                  Retake Quiz
+                </button>
+              `
+              : ""
+          }
           <button
             type="button"
             class="button-primary"
@@ -435,6 +618,7 @@ const renderPreviewPanel = () => {
             ${state.isSubmittingAttempt ? "Submitting..." : submittedPreviewAttempt ? "Submitted" : "Submit Quiz"}
           </button>
         </div>
+        ${previewAttemptHistoryMarkup}
         <div class="quiz-list">
           ${state.currentQuizQuestions
             .map((question, index) => {
@@ -472,6 +656,8 @@ const renderPreviewPanel = () => {
               const resultMarkup = result
                 ? `
                   <div class="answer-line">
+                    <span class="answer-line-header">Your Answer</span>
+                    <span class="answer-badge">${result.selected_answer ?? "--"}</span>
                     <span class="answer-line-header">Correct Answer</span>
                     <span class="answer-badge">${result.correct_answer}</span>
                     <span class="result-badge ${result.is_correct ? "is-correct" : "is-incorrect"}">
@@ -514,7 +700,7 @@ const renderPreviewPanel = () => {
         }
         ${
           state.quizNotice
-            ? `<p class="question-note quiz-notice" role="status">${state.quizNotice}</p>`
+            ? `<p class="${getQuizNoticeClassName()}" role="status">${state.quizNotice}</p>`
             : ""
         }
       </div>
@@ -592,6 +778,34 @@ const renderPreviewPanel = () => {
         <p>${selectedSession.rawText || "Transcript detail is not available yet."}</p>
       </div>
       <div class="preview-actions">
+        <div class="quiz-generation-controls" aria-label="Quiz generation settings">
+          <label class="quiz-control-field" for="generate-quiz-difficulty">
+            <span>Difficulty</span>
+            <select
+              id="generate-quiz-difficulty"
+              class="control-select"
+              ${isGeneratingSelectedQuiz ? "disabled" : ""}
+            >
+              <option value="easy" ${state.quizDifficulty === "easy" ? "selected" : ""}>Easy</option>
+              <option value="medium" ${state.quizDifficulty === "medium" ? "selected" : ""}>Medium</option>
+              <option value="hard" ${state.quizDifficulty === "hard" ? "selected" : ""}>Hard</option>
+            </select>
+          </label>
+          <label class="quiz-control-field" for="generate-quiz-question-type">
+            <span>Question Type</span>
+            <select
+              id="generate-quiz-question-type"
+              class="control-select"
+              ${isGeneratingSelectedQuiz ? "disabled" : ""}
+            >
+              <option value="mixed" ${state.quizQuestionType === "mixed" ? "selected" : ""}>Mixed</option>
+              <option value="inference" ${state.quizQuestionType === "inference" ? "selected" : ""}>Inference</option>
+              <option value="vocabulary" ${state.quizQuestionType === "vocabulary" ? "selected" : ""}>Vocabulary</option>
+              <option value="main_idea" ${state.quizQuestionType === "main_idea" ? "selected" : ""}>Main idea</option>
+              <option value="detail" ${state.quizQuestionType === "detail" ? "selected" : ""}>Detail</option>
+            </select>
+          </label>
+        </div>
         <button
           id="generate-reading-quiz-button"
           type="button"
@@ -746,6 +960,8 @@ const renderQuizPanel = () => {
       const resultMarkup = result
         ? `
           <div class="answer-line">
+            <span class="answer-line-header">Your Answer</span>
+            <span class="answer-badge">${result.selected_answer ?? "--"}</span>
             <span class="answer-line-header">Correct Answer</span>
             <span class="answer-badge">${result.correct_answer}</span>
             <span class="result-badge ${result.is_correct ? "is-correct" : "is-incorrect"}">
@@ -786,13 +1002,19 @@ const renderQuizPanel = () => {
     `
 
   elements.quizPanel.innerHTML = `
+    ${buildQuizAttemptHistoryMarkup({ activeAttemptId: submittedAttempt?.attempt_id })}
     <div class="quiz-list">
       ${questionMarkup}
     </div>
     ${scoreSummaryMarkup}
-    ${state.quizNotice ? `<p class="question-note quiz-notice" role="status">${state.quizNotice}</p>` : ""}
+    ${state.quizNotice ? `<p class="${getQuizNoticeClassName()}" role="status">${state.quizNotice}</p>` : ""}
     <div class="quiz-footer-actions">
       <button id="regenerate-quiz-button" type="button" class="button-ghost">Regenerate Quiz</button>
+      ${
+        submittedAttempt
+          ? `<button id="retake-quiz-button" type="button" class="button-ghost">Retake Quiz</button>`
+          : ""
+      }
       <button
         id="submit-quiz-button"
         type="button"
@@ -813,6 +1035,7 @@ const renderQuizPanel = () => {
       const target = event.currentTarget
       const questionId = Number(target.dataset.questionId)
       state.quizNotice = ""
+      state.quizNoticeTone = "error"
       state.selectedAnswersByQuestionId = {
         ...state.selectedAnswersByQuestionId,
         [questionId]: target.value,
@@ -834,6 +1057,28 @@ const renderQuizPanel = () => {
     submitButton.addEventListener("click", (event) => {
       event.preventDefault()
       void submitCurrentQuizAttempt()
+    })
+  }
+  const retakeButton = document.getElementById("retake-quiz-button")
+  if (retakeButton) {
+    retakeButton.addEventListener("click", (event) => {
+      event.preventDefault()
+      startNewQuizAttempt()
+      renderPreviewPanel()
+      renderQuizPanel()
+    })
+  }
+  for (const attemptButton of elements.quizPanel.querySelectorAll("[data-preview-attempt-id]")) {
+    attemptButton.addEventListener("click", (event) => {
+      event.preventDefault()
+      const attemptId = Number(event.currentTarget.dataset.previewAttemptId)
+      const attempt = getCurrentAttemptHistory().find((item) => item.attempt_id === attemptId)
+      if (!attempt) {
+        return
+      }
+      setActiveReviewAttempt(attempt)
+      renderPreviewPanel()
+      renderQuizPanel()
     })
   }
 }
@@ -924,7 +1169,9 @@ const loadSessionDetail = async (sessionId, { force = false } = {}) => {
 const loadExistingQuizForSession = async (sessionId, { force = false } = {}) => {
   if (!force && state.quizzesBySessionId.has(sessionId)) {
     if (state.selectedSessionId === sessionId) {
-      applyQuizToState(state.quizzesBySessionId.get(sessionId))
+      const cachedQuiz = state.quizzesBySessionId.get(sessionId)
+      applyQuizToState(cachedQuiz)
+      void loadAttemptHistoryForSession(sessionId)
     }
     return
   }
@@ -949,6 +1196,56 @@ const loadExistingQuizForSession = async (sessionId, { force = false } = {}) => 
   const latestQuiz = normalizeQuizResponse(quizzes[0])
   state.quizzesBySessionId.set(sessionId, latestQuiz)
   applyQuizToState(latestQuiz)
+  await loadAttemptHistoryForSession(sessionId)
+}
+
+const loadAttemptHistoryForSession = async (sessionId, { force = false } = {}) => {
+  if (!force && state.attemptHistoryBySessionId.has(sessionId)) {
+    renderPreviewPanel()
+    renderQuizPanel()
+    return
+  }
+
+  state.loadingAttemptHistorySessionIds.add(sessionId)
+  state.attemptHistoryErrorsBySessionId.delete(sessionId)
+  renderPreviewPanel()
+  renderQuizPanel()
+
+  try {
+    const quizzesResponse = await apiFetch(`/api/v1/sessions/${sessionId}/quizzes`)
+    if (!quizzesResponse.ok) {
+      throw new Error(await extractErrorMessage(quizzesResponse))
+    }
+
+    const quizzes = await quizzesResponse.json()
+    const quizList = Array.isArray(quizzes) ? quizzes : []
+    const historyGroups = await Promise.all(
+      quizList.map(async (quiz) => {
+        const response = await apiFetch(`/api/v1/quizzes/${quiz.quiz_id}/attempts`)
+        if (!response.ok) {
+          throw new Error(await extractErrorMessage(response))
+        }
+        const history = await response.json()
+        return Array.isArray(history) ? history : []
+      }),
+    )
+    const history = historyGroups
+      .flat()
+      .sort((left, right) => {
+        return new Date(right.submitted_at).getTime() - new Date(left.submitted_at).getTime()
+      })
+    state.attemptHistoryBySessionId.set(sessionId, history)
+  } catch (error) {
+    state.attemptHistoryErrorsBySessionId.set(
+      sessionId,
+      error instanceof Error ? error.message : "Could not load quiz attempt history.",
+    )
+  } finally {
+    state.loadingAttemptHistorySessionIds.delete(sessionId)
+  }
+
+  renderPreviewPanel()
+  renderQuizPanel()
 }
 
 const refreshProfileSummary = async () => {
@@ -1079,6 +1376,10 @@ const generateQuizForSelectedSession = async () => {
 
     const response = await apiFetch(`/api/v1/sessions/${sessionId}/generate-quiz`, {
       method: "POST",
+      body: JSON.stringify({
+        difficulty: state.quizDifficulty,
+        question_type: state.quizQuestionType,
+      }),
     })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response))
@@ -1087,11 +1388,14 @@ const generateQuizForSelectedSession = async () => {
     const quiz = normalizeQuizResponse(await response.json())
     state.quizzesBySessionId.set(sessionId, quiz)
     state.attemptResultsByQuizId.delete(quiz.quizId)
+    state.attemptHistoryErrorsBySessionId.delete(sessionId)
     syncSessionQuizStatus(sessionId, "Quiz Generated")
     if (state.selectedSessionId === sessionId) {
       state.generatingSessionIds.delete(sessionId)
       applyQuizToState(quiz)
       renderAll()
+      scrollPreviewQuizIntoView()
+      void loadAttemptHistoryForSession(sessionId, { force: true })
 
       void loadExistingQuizForSession(sessionId, { force: true }).catch(() => {
         return
@@ -1119,12 +1423,14 @@ const submitCurrentQuizAttempt = async () => {
 
   if (!hasAnsweredEveryQuestion()) {
     state.quizNotice = `Choose an answer for all ${state.currentQuizQuestions.length} questions before submitting.`
+    state.quizNoticeTone = "error"
     renderPreviewPanel()
     renderQuizPanel()
     return
   }
 
   state.quizNotice = ""
+  state.quizNoticeTone = "error"
   state.isSubmittingAttempt = true
   renderPreviewPanel()
   renderQuizPanel()
@@ -1154,6 +1460,11 @@ const submitCurrentQuizAttempt = async () => {
 
     const payload = await response.json()
     state.attemptResultsByQuizId.set(state.currentQuizId, payload)
+    if (state.selectedSessionId) {
+      await loadAttemptHistoryForSession(state.selectedSessionId, { force: true })
+    }
+    state.quizNotice = "Attempt saved to history."
+    state.quizNoticeTone = "success"
     await refreshProfileSummary()
   } catch (error) {
     state.quizState = "error"
@@ -1184,9 +1495,28 @@ const bindEvents = () => {
       if (action === "regenerate") {
         void generateQuizForSelectedSession()
       }
+      if (action === "retake") {
+        startNewQuizAttempt()
+        renderPreviewPanel()
+        renderQuizPanel()
+      }
       if (action === "submit") {
         void submitCurrentQuizAttempt()
       }
+      return
+    }
+
+    const attemptButton = target.closest("[data-preview-attempt-id]")
+    if (attemptButton) {
+      event.preventDefault()
+      const attemptId = Number(attemptButton.dataset.previewAttemptId)
+      const attempt = getCurrentAttemptHistory().find((item) => item.attempt_id === attemptId)
+      if (!attempt) {
+        return
+      }
+      setActiveReviewAttempt(attempt)
+      renderPreviewPanel()
+      renderQuizPanel()
       return
     }
 
@@ -1201,12 +1531,21 @@ const bindEvents = () => {
 
   elements.previewPanel.addEventListener("change", (event) => {
     const target = event.target
+    if (target instanceof HTMLSelectElement && target.id === "generate-quiz-difficulty") {
+      state.quizDifficulty = target.value
+      return
+    }
+    if (target instanceof HTMLSelectElement && target.id === "generate-quiz-question-type") {
+      state.quizQuestionType = target.value
+      return
+    }
     if (!(target instanceof HTMLInputElement) || !target.dataset.previewQuestionId) {
       return
     }
 
     const questionId = Number(target.dataset.previewQuestionId)
     state.quizNotice = ""
+    state.quizNoticeTone = "error"
     state.selectedAnswersByQuestionId = {
       ...state.selectedAnswersByQuestionId,
       [questionId]: target.value,

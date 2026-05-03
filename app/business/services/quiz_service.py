@@ -73,6 +73,17 @@ class QuizService:
             answers=answers,
         )
 
+    def list_attempts_for_quiz(
+        self,
+        *,
+        quiz_id: int,
+        user_id: int,
+    ) -> list[QuizAttempt]:
+        return self._quiz_repository.list_attempts_for_quiz(
+            quiz_id=quiz_id,
+            user_id=user_id,
+        )
+
     def submit_quiz_attempt(
         self,
         *,

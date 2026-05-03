@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
@@ -19,6 +20,7 @@ from app.business.services.session_history_service import SessionHistoryService
 from app.presentation.dependencies.services import get_quiz_generation_service
 from app.presentation.dependencies.services import get_session_history_service
 from app.presentation.schemas.quizzes import GenerateQuizResponse
+from app.presentation.schemas.quizzes import GenerateQuizRequest
 from app.presentation.schemas.sessions import CreateSessionRequest
 from app.presentation.schemas.sessions import SessionDetailResponse
 from app.presentation.schemas.sessions import SessionSummaryResponse
@@ -150,11 +152,15 @@ def generate_quiz_for_session(
         SessionHistoryService,
         Depends(get_session_history_service),
     ],
+    payload: Annotated[GenerateQuizRequest | None, Body()] = None,
 ) -> GenerateQuizResponse:
+    request_payload = payload or GenerateQuizRequest()
     try:
         quiz = quiz_service.generate_quiz_for_session(
             session_id=session_id,
             user_id=current_user.id,
+            difficulty=request_payload.difficulty,
+            question_type=request_payload.question_type,
         )
     except SessionOwnershipError:
         raise HTTPException(

@@ -186,6 +186,30 @@ def test_generate_quiz_success_with_mock_provider(tmp_path: Path, monkeypatch) -
     app.dependency_overrides.clear()
 
 
+def test_generate_quiz_accepts_difficulty_and_question_type(tmp_path: Path, monkeypatch) -> None:
+    client = _build_test_client(tmp_path / "quiz-generate-options.db", monkeypatch)
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh-options@example.com",
+    )
+    session_id = _create_session(client, token, _long_session_payload())
+
+    response = client.post(
+        f"/api/v1/sessions/{session_id}/generate-quiz",
+        json={
+            "difficulty": "hard",
+            "question_type": "vocabulary",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    first_question = response.json()["questions"][0]["question"]
+    assert "[Hard / Vocabulary]" in first_question
+    app.dependency_overrides.clear()
+
+
 def test_generated_quiz_is_saved_in_database(tmp_path: Path, monkeypatch) -> None:
     client = _build_test_client(tmp_path / "quiz-saved.db", monkeypatch)
     token = _register_and_get_token(
@@ -446,4 +470,91 @@ def test_quiz_attempt_is_saved_in_database(tmp_path: Path, monkeypatch) -> None:
     assert saved_attempt is not None
     assert saved_attempt.quiz_id == quiz["quiz_id"]
     assert len(saved_answers) == 2
+    app.dependency_overrides.clear()
+
+
+def test_list_quiz_attempt_history_returns_review_details(tmp_path: Path, monkeypatch) -> None:
+    client = _build_test_client(tmp_path / "quiz-attempt-history.db", monkeypatch)
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh@example.com",
+    )
+    session_id = _create_session(client, token, _long_session_payload())
+    quiz = _generate_quiz(client, token, session_id)
+    first_question = quiz["questions"][0]
+    wrong_answer = "B" if first_question["correct_answer"] != "B" else "C"
+
+    first_response = client.post(
+        f"/api/v1/quizzes/{quiz['quiz_id']}/submit",
+        json={
+            "answers": [
+                {
+                    "question_id": first_question["id"],
+                    "selected_answer": wrong_answer,
+                }
+            ]
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert first_response.status_code == 200
+
+    second_response = client.post(
+        f"/api/v1/quizzes/{quiz['quiz_id']}/submit",
+        json={
+            "answers": [
+                {
+                    "question_id": question["id"],
+                    "selected_answer": question["correct_answer"],
+                }
+                for question in quiz["questions"]
+            ]
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert second_response.status_code == 200
+
+    history_response = client.get(
+        f"/api/v1/quizzes/{quiz['quiz_id']}/attempts",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert history_response.status_code == 200
+    history = history_response.json()
+    assert len(history) == 2
+    assert history[0]["attempt_id"] == second_response.json()["attempt_id"]
+    assert history[0]["score"] == 100.0
+    assert history[1]["attempt_id"] == first_response.json()["attempt_id"]
+    assert history[1]["score"] == 0.0
+    assert history[1]["results"][0]["question_id"] == first_question["id"]
+    assert history[1]["results"][0]["question"] == first_question["question"]
+    assert history[1]["results"][0]["selected_answer"] == wrong_answer
+    assert history[1]["results"][0]["correct_answer"] == first_question["correct_answer"]
+    assert history[1]["results"][0]["is_correct"] is False
+    assert history[1]["results"][0]["explanation"] == first_question["explanation"]
+    assert set(history[1]["results"][0]["options"].keys()) == {"A", "B", "C", "D"}
+    app.dependency_overrides.clear()
+
+
+def test_cannot_list_another_users_quiz_attempt_history(tmp_path: Path, monkeypatch) -> None:
+    client = _build_test_client(tmp_path / "quiz-attempt-history-ownership.db", monkeypatch)
+    token_a = _register_and_get_token(
+        client,
+        username="usera",
+        email="usera@example.com",
+    )
+    token_b = _register_and_get_token(
+        client,
+        username="userb",
+        email="userb@example.com",
+    )
+    session_id = _create_session(client, token_a, _long_session_payload())
+    quiz = _generate_quiz(client, token_a, session_id)
+
+    response = client.get(
+        f"/api/v1/quizzes/{quiz['quiz_id']}/attempts",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+
+    assert response.status_code == 404
     app.dependency_overrides.clear()

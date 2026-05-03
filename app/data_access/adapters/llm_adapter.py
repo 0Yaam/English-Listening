@@ -23,11 +23,12 @@ _PROMPT_TEMPLATE = """You are an English reading comprehension assessment genera
 Generate multiple-choice reading comprehension questions based only on the transcript below.
 
 Difficulty target: {difficulty}
+Question focus: {question_focus}
 
 Rules:
 - Only use information from the transcript.
 - Do not invent facts outside the transcript.
-- Questions should test inference, cause/effect, main idea, contrast, and practical interpretation.
+- Follow the question focus carefully: {question_focus_instruction}
 - Avoid generic wording like "which statement best captures the idea highlighted in question".
 - Avoid copying full transcript sentences as the correct option.
 - Distractors should sound plausible but be clearly wrong based on the transcript.
@@ -102,6 +103,8 @@ class MockLLMQuizAdapter(LLMQuizProvider):
         *,
         raw_text: str,
         question_count: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
         sentences = self._extract_sentences(raw_text)
         transcript_preview = sentences[0]
@@ -125,6 +128,7 @@ class MockLLMQuizAdapter(LLMQuizProvider):
             questions.append(
                 QuizQuestionDraft(
                     question=(
+                        f"[{difficulty.title()} / {question_type.replace('_', ' ').title()}] "
                         f"According to the transcript, which statement best captures "
                         f"the idea highlighted in question {index + 1}?"
                     ),
@@ -202,6 +206,8 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
         *,
         raw_text: str,
         question_count: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
         payload = {
             "model": self._model,
@@ -212,7 +218,12 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
                 },
                 {
                     "role": "user",
-                    "content": _build_prompt(raw_text=raw_text, question_count=question_count),
+                    "content": _build_prompt(
+                        raw_text=raw_text,
+                        question_count=question_count,
+                        difficulty=difficulty,
+                        question_type=question_type,
+                    ),
                 },
             ],
             "temperature": 0.2,
@@ -296,7 +307,10 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         *,
         raw_text: str,
         question_count: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
+        resolved_difficulty = difficulty.strip() or self._difficulty
         payload = {
             "model": self._model,
             "messages": [
@@ -312,7 +326,8 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                     "content": _build_prompt(
                         raw_text=raw_text,
                         question_count=question_count,
-                        difficulty=self._difficulty,
+                        difficulty=resolved_difficulty,
+                        question_type=question_type,
                     ),
                 },
             ],
@@ -398,6 +413,8 @@ class GeminiLLMQuizAdapter(LLMQuizProvider):
         *,
         raw_text: str,
         question_count: int,
+        difficulty: str = "medium",
+        question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
         payload = {
             "contents": [
@@ -407,6 +424,8 @@ class GeminiLLMQuizAdapter(LLMQuizProvider):
                             "text": _build_prompt(
                                 raw_text=raw_text,
                                 question_count=question_count,
+                                difficulty=difficulty,
+                                question_type=question_type,
                             ),
                         }
                     ]
@@ -465,11 +484,42 @@ def _build_prompt(
     raw_text: str,
     question_count: int,
     difficulty: str = "standard",
+    question_type: str = "mixed",
 ) -> str:
+    normalized_question_type = question_type.strip().lower() or "mixed"
     return _PROMPT_TEMPLATE.format(
         question_count=question_count,
         difficulty=difficulty.strip() or "standard",
+        question_focus=normalized_question_type.replace("_", " "),
+        question_focus_instruction=_build_question_focus_instruction(normalized_question_type),
         raw_transcript=raw_text.strip(),
+    )
+
+
+def _build_question_focus_instruction(question_type: str) -> str:
+    if question_type == "inference":
+        return (
+            "focus on inference, implication, speaker intent, cause/effect, and ideas "
+            "that require connecting multiple transcript details."
+        )
+    if question_type == "vocabulary":
+        return (
+            "focus on vocabulary in context, paraphrase, meaning from surrounding clues, "
+            "and why a word or phrase fits the transcript."
+        )
+    if question_type == "main_idea":
+        return (
+            "focus on main idea, purpose, summary, topic development, and the relationship "
+            "between supporting details and the overall message."
+        )
+    if question_type == "detail":
+        return (
+            "focus on specific details, sequence, stated facts, and careful distinction "
+            "between similar transcript details."
+        )
+    return (
+        "mix inference, vocabulary in context, main idea, detail, cause/effect, contrast, "
+        "and practical interpretation."
     )
 
 

@@ -148,6 +148,23 @@ class QuizRepository:
         self._session.refresh(attempt)
         return self._to_attempt_domain(attempt)
 
+    def list_attempts_for_quiz(
+        self,
+        *,
+        quiz_id: int,
+        user_id: int,
+    ) -> list[QuizAttempt]:
+        statement = (
+            select(QuizAttemptORM)
+            .options(selectinload(QuizAttemptORM.answers))
+            .where(
+                QuizAttemptORM.quiz_id == quiz_id,
+                QuizAttemptORM.user_id == user_id,
+            )
+            .order_by(QuizAttemptORM.submitted_at.desc(), QuizAttemptORM.id.desc())
+        )
+        return [self._to_attempt_domain(attempt) for attempt in self._session.scalars(statement)]
+
     def count_quizzes_by_user(self, user_id: int) -> int:
         statement = select(func.count(QuizORM.id)).where(QuizORM.user_id == user_id)
         return int(self._session.scalar(statement) or 0)
