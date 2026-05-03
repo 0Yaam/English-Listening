@@ -17,14 +17,23 @@ from app.business.services.ai_quiz_generation_service import SessionOwnershipErr
 from app.business.services.ai_quiz_generation_service import TranscriptNotFoundError
 from app.business.services.ai_quiz_generation_service import TranscriptTooShortError
 from app.business.services.session_history_service import SessionHistoryService
+from app.business.services.vocabulary_service import VocabularyService
+from app.business.services.vocabulary_service import VocabularySessionNotFoundError
+from app.business.services.vocabulary_service import VocabularyTranscriptNotFoundError
 from app.presentation.dependencies.services import get_quiz_generation_service
 from app.presentation.dependencies.services import get_session_history_service
+from app.presentation.dependencies.services import get_vocabulary_service
 from app.presentation.schemas.quizzes import GenerateQuizResponse
 from app.presentation.schemas.quizzes import GenerateQuizRequest
 from app.presentation.schemas.sessions import CreateSessionRequest
 from app.presentation.schemas.sessions import SessionDetailResponse
 from app.presentation.schemas.sessions import SessionSummaryResponse
 from app.presentation.schemas.sessions import TranscriptResponse
+from app.presentation.schemas.vocabulary import SaveVocabularyItemRequest
+from app.presentation.schemas.vocabulary import VocabularyItemResponse
+from app.presentation.schemas.vocabulary import VocabularyListResponse
+from app.presentation.schemas.vocabulary import VocabularyQuizQuestionResponse
+from app.presentation.schemas.vocabulary import VocabularyQuizResponse
 from app.security.dependencies import get_current_user
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -138,6 +147,95 @@ def get_session_transcript(
         )
 
     return TranscriptResponse.from_domain(transcript)
+
+
+@router.get("/{session_id}/vocabulary", response_model=VocabularyListResponse)
+def list_session_vocabulary(
+    session_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    vocabulary_service: Annotated[VocabularyService, Depends(get_vocabulary_service)],
+) -> VocabularyListResponse:
+    try:
+        items = vocabulary_service.list_vocabulary_for_session(
+            session_id=session_id,
+            user_id=current_user.id,
+        )
+    except VocabularySessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        ) from None
+    except VocabularyTranscriptNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transcript not found for this session.",
+        ) from None
+
+    return VocabularyListResponse(
+        session_id=session_id,
+        items=[VocabularyItemResponse.from_candidate(item) for item in items],
+    )
+
+
+@router.post("/{session_id}/vocabulary", response_model=VocabularyItemResponse)
+def save_session_vocabulary_item(
+    session_id: int,
+    payload: SaveVocabularyItemRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    vocabulary_service: Annotated[VocabularyService, Depends(get_vocabulary_service)],
+) -> VocabularyItemResponse:
+    try:
+        item = vocabulary_service.save_vocabulary_item(
+            session_id=session_id,
+            user_id=current_user.id,
+            term=payload.term,
+            context_sentence=payload.context_sentence,
+            definition=payload.definition,
+            difficulty=payload.difficulty,
+        )
+    except VocabularySessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        ) from None
+    except VocabularyTranscriptNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transcript not found for this session.",
+        ) from None
+
+    return VocabularyItemResponse.from_domain(item)
+
+
+@router.get("/{session_id}/vocabulary/quiz", response_model=VocabularyQuizResponse)
+def get_session_vocabulary_quiz(
+    session_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    vocabulary_service: Annotated[VocabularyService, Depends(get_vocabulary_service)],
+) -> VocabularyQuizResponse:
+    try:
+        questions = vocabulary_service.build_vocabulary_quiz(
+            session_id=session_id,
+            user_id=current_user.id,
+        )
+    except VocabularySessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        ) from None
+    except VocabularyTranscriptNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transcript not found for this session.",
+        ) from None
+
+    return VocabularyQuizResponse(
+        session_id=session_id,
+        questions=[
+            VocabularyQuizQuestionResponse.from_domain(question)
+            for question in questions
+        ],
+    )
 
 
 @router.post("/{session_id}/generate-quiz", response_model=GenerateQuizResponse)

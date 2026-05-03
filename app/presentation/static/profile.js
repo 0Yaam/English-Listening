@@ -15,6 +15,7 @@ const state = {
   sessionsError: "",
   searchTerm: "",
   filterValue: "All",
+  activeDashboardTab: "workspace",
   selectedSessionId: null,
   previewState: "empty",
   previewError: "",
@@ -40,6 +41,13 @@ const state = {
   attemptHistoryBySessionId: new Map(),
   loadingAttemptHistorySessionIds: new Set(),
   attemptHistoryErrorsBySessionId: new Map(),
+  vocabularyBySessionId: new Map(),
+  loadingVocabularySessionIds: new Set(),
+  vocabularyErrorsBySessionId: new Map(),
+  vocabularyQuizBySessionId: new Map(),
+  loadingVocabularyQuizSessionIds: new Set(),
+  vocabularyQuizErrorsBySessionId: new Map(),
+  vocabularyQuizAnswersBySessionId: new Map(),
 }
 
 const elements = {
@@ -58,6 +66,9 @@ const elements = {
   summary: document.getElementById("transcript-summary"),
   searchInput: document.getElementById("transcript-search"),
   filterSelect: document.getElementById("transcript-filter"),
+  transcriptLayout: document.getElementById("transcript-layout"),
+  analyticsPanel: document.getElementById("learning-analytics-panel"),
+  dashboardTabs: document.querySelector(".dashboard-tabs"),
   previewPanel: document.getElementById("preview-panel-content"),
   quizPanel: document.getElementById("quiz-panel-content"),
 }
@@ -94,6 +105,26 @@ const formatPercent = (value) => {
   }
 
   return `${Math.round(Number(value) * 10) / 10}%`
+}
+
+const escapeHtml = (value) => {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
+const formatShortDateLabel = (isoDate) => {
+  if (!isoDate) {
+    return "--"
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${isoDate}T00:00:00`))
 }
 
 const buildAvatarInitials = (username) => {
@@ -159,6 +190,26 @@ const normalizeQuizResponse = (payload) => {
       correct_answer: question.correct_answer,
       explanation: question.explanation,
     })),
+  }
+}
+
+const normalizeVocabularyItem = (item) => {
+  return {
+    id: item.id ?? null,
+    term: item.term,
+    contextSentence: item.context_sentence,
+    definition: item.definition,
+    difficulty: item.difficulty,
+    isSaved: Boolean(item.is_saved),
+  }
+}
+
+const normalizeVocabularyQuizQuestion = (item) => {
+  return {
+    prompt: item.prompt,
+    options: Array.isArray(item.options) ? item.options : [],
+    correctAnswer: item.correct_answer,
+    contextSentence: item.context_sentence,
   }
 }
 
@@ -300,6 +351,48 @@ const getCurrentAttemptHistoryError = () => {
   return state.selectedSessionId
     ? state.attemptHistoryErrorsBySessionId.get(state.selectedSessionId) ?? ""
     : ""
+}
+
+const getCurrentVocabulary = () => {
+  return state.selectedSessionId
+    ? state.vocabularyBySessionId.get(state.selectedSessionId) ?? []
+    : []
+}
+
+const isLoadingCurrentVocabulary = () => {
+  return state.selectedSessionId
+    ? state.loadingVocabularySessionIds.has(state.selectedSessionId)
+    : false
+}
+
+const getCurrentVocabularyError = () => {
+  return state.selectedSessionId
+    ? state.vocabularyErrorsBySessionId.get(state.selectedSessionId) ?? ""
+    : ""
+}
+
+const getCurrentVocabularyQuiz = () => {
+  return state.selectedSessionId
+    ? state.vocabularyQuizBySessionId.get(state.selectedSessionId) ?? []
+    : []
+}
+
+const isLoadingCurrentVocabularyQuiz = () => {
+  return state.selectedSessionId
+    ? state.loadingVocabularyQuizSessionIds.has(state.selectedSessionId)
+    : false
+}
+
+const getCurrentVocabularyQuizError = () => {
+  return state.selectedSessionId
+    ? state.vocabularyQuizErrorsBySessionId.get(state.selectedSessionId) ?? ""
+    : ""
+}
+
+const getCurrentVocabularyQuizAnswers = () => {
+  return state.selectedSessionId
+    ? state.vocabularyQuizAnswersBySessionId.get(state.selectedSessionId) ?? {}
+    : {}
 }
 
 const getWrongAnswerCount = (attempt) => {
@@ -446,6 +539,299 @@ const buildQuizAttemptHistoryMarkup = ({ activeAttemptId: fallbackActiveAttemptI
   `
 }
 
+const buildAnalyticsBarsMarkup = ({ items, valueKey, labelKey, type, maxValue = 100 }) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `<p class="state-copy">Not enough data yet.</p>`
+  }
+
+  const resolvedMaxValue = Math.max(
+    maxValue,
+    ...items.map((item) => Number(item[valueKey] ?? 0)),
+  )
+  return `
+    <div class="analytics-bars">
+      ${items
+        .map((item) => {
+          const rawValue = Number(item[valueKey] ?? 0)
+          const height = Math.max(6, Math.round((rawValue / resolvedMaxValue) * 100))
+          const label = labelKey === "week_start"
+            ? formatShortDateLabel(item[labelKey])
+            : formatShortDateLabel(item[labelKey])
+          return `
+            <div class="analytics-bar ${type ? `is-${type}` : ""}" title="${escapeHtml(`${label}: ${rawValue}`)}">
+              <span class="analytics-bar-fill" style="height: ${height}%"></span>
+              <span class="analytics-bar-label">${escapeHtml(label)}</span>
+            </div>
+          `
+        })
+        .join("")}
+    </div>
+  `
+}
+
+const buildLearningAnalyticsMarkup = () => {
+  if (state.profileLoadState === "loading") {
+    return `
+      <div class="state-block">
+        <p class="state-copy">Loading learning analytics.</p>
+      </div>
+    `
+  }
+
+  if (state.profileLoadState === "error" || !state.profile?.analytics) {
+    return `
+      <div class="state-block state-error">
+        <p class="state-copy">${state.profileError || "Could not load learning analytics."}</p>
+      </div>
+    `
+  }
+
+  const analytics = state.profile.analytics
+  const weakestSkill = analytics.weakest_skill ?? {
+    label: "Not enough quiz data",
+    missed_count: 0,
+    summary: "Submit a few quizzes to identify the weakest listening skill.",
+  }
+
+  return `
+    <div class="panel-heading">
+      <div>
+        <h2 id="learning-analytics-title">Learning Analytics</h2>
+        <p class="panel-subtext">Track accuracy, quiz score, weekly consistency, and the skill that needs more review.</p>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Accuracy by Day</h3>
+          <p class="analytics-card-note">Listening sessions</p>
+        </div>
+        ${buildAnalyticsBarsMarkup({
+          items: analytics.accuracy_by_day,
+          valueKey: "average_accuracy",
+          labelKey: "date",
+          type: "accuracy",
+          maxValue: 100,
+        })}
+      </article>
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Quiz Score by Day</h3>
+          <p class="analytics-card-note">Saved attempts</p>
+        </div>
+        ${buildAnalyticsBarsMarkup({
+          items: analytics.quiz_score_by_day,
+          valueKey: "average_score",
+          labelKey: "date",
+          type: "quiz",
+          maxValue: 100,
+        })}
+      </article>
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Sessions Each Week</h3>
+          <p class="analytics-card-note">Consistency</p>
+        </div>
+        ${buildAnalyticsBarsMarkup({
+          items: analytics.sessions_by_week,
+          valueKey: "session_count",
+          labelKey: "week_start",
+          type: "week",
+          maxValue: 1,
+        })}
+      </article>
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <h3>Weakest Skill</h3>
+          <p class="analytics-card-note">From wrong quiz answers</p>
+        </div>
+        <div class="weak-skill-card">
+          <div>
+            <span class="quiz-empty-kicker">Focus area</span>
+            <h3>${escapeHtml(weakestSkill.label)}</h3>
+            <p>${escapeHtml(weakestSkill.summary)}</p>
+          </div>
+          <div class="weak-skill-count" aria-label="${escapeHtml(`${weakestSkill.missed_count} missed answers`)}">
+            ${escapeHtml(weakestSkill.missed_count)}
+          </div>
+        </div>
+      </article>
+    </div>
+  `
+}
+
+const renderLearningAnalytics = () => {
+  elements.analyticsPanel.innerHTML = buildLearningAnalyticsMarkup()
+}
+
+const renderDashboardView = () => {
+  const isAnalyticsActive = state.activeDashboardTab === "analytics"
+  elements.transcriptLayout.hidden = isAnalyticsActive
+  elements.analyticsPanel.hidden = !isAnalyticsActive
+  for (const tab of elements.dashboardTabs.querySelectorAll("[data-dashboard-tab]")) {
+    const isActive = tab.dataset.dashboardTab === state.activeDashboardTab
+    tab.classList.toggle("is-active", isActive)
+    tab.setAttribute("aria-selected", String(isActive))
+  }
+}
+
+const buildVocabularyQuizMarkup = () => {
+  const questions = getCurrentVocabularyQuiz()
+  const answers = getCurrentVocabularyQuizAnswers()
+  const error = getCurrentVocabularyQuizError()
+
+  if (isLoadingCurrentVocabularyQuiz()) {
+    return `
+      <div class="vocabulary-quiz">
+        <div class="loading-inline">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p class="state-copy">Building vocabulary mini quiz.</p>
+        </div>
+      </div>
+    `
+  }
+
+  if (error) {
+    return `
+      <div class="vocabulary-quiz">
+        <p class="question-note quiz-notice">${escapeHtml(error)}</p>
+      </div>
+    `
+  }
+
+  if (questions.length === 0) {
+    return ""
+  }
+
+  return `
+    <div class="vocabulary-quiz" aria-label="Vocabulary mini quiz">
+      <div class="quiz-history-header">
+        <h3>Mini Quiz</h3>
+        <span class="question-note">Choose the word that completes each transcript sentence.</span>
+      </div>
+      ${questions
+        .map((question, index) => {
+          const selectedAnswer = answers[index] ?? ""
+          const optionMarkup = question.options
+            .map((option) => {
+              const isSelected = selectedAnswer === option
+              const isAnswered = Boolean(selectedAnswer)
+              const resultClass = isAnswered
+                ? option === question.correctAnswer
+                  ? "is-correct-option"
+                  : isSelected
+                    ? "is-incorrect-option"
+                    : ""
+                : ""
+              return `
+                <label class="quiz-option quiz-option-choice ${isSelected ? "is-selected" : ""} ${resultClass}">
+                  <input
+                    type="radio"
+                    name="vocabulary-quiz-question-${index}"
+                    value="${escapeHtml(option)}"
+                    data-vocabulary-question-index="${index}"
+                    ${isSelected ? "checked" : ""}
+                  />
+                  <span class="option-label">${escapeHtml(option.slice(0, 1).toUpperCase())}</span>
+                  <span class="option-copy">${escapeHtml(option)}</span>
+                </label>
+              `
+            })
+            .join("")
+          return `
+            <article class="vocabulary-quiz-question">
+              <span class="quiz-question-index">Word ${index + 1}</span>
+              <h4>${escapeHtml(question.prompt)}</h4>
+              <div class="quiz-options">${optionMarkup}</div>
+            </article>
+          `
+        })
+        .join("")}
+    </div>
+  `
+}
+
+const buildVocabularyMarkup = () => {
+  if (isLoadingCurrentVocabulary()) {
+    return `
+      <div class="state-block">
+        <div class="loading-inline">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p class="state-copy">Extracting vocabulary from this transcript.</p>
+        </div>
+      </div>
+    `
+  }
+
+  const error = getCurrentVocabularyError()
+  if (error) {
+    return `
+      <div class="state-block state-error">
+        <p class="state-copy">${escapeHtml(error)}</p>
+        <div class="state-actions">
+          <button type="button" class="button-ghost" data-vocabulary-action="reload">Retry</button>
+        </div>
+      </div>
+    `
+  }
+
+  const items = getCurrentVocabulary()
+  if (items.length === 0) {
+    return `
+      <div class="quiz-empty-state">
+        <span class="quiz-empty-kicker">Vocabulary</span>
+        <h3>No vocabulary yet</h3>
+        <p>Open this tab after selecting a transcript to extract useful words and build a mini quiz.</p>
+        <div class="state-actions">
+          <button type="button" class="button-primary" data-vocabulary-action="reload">Extract Vocabulary</button>
+        </div>
+      </div>
+    `
+  }
+
+  return `
+    <section class="vocabulary-panel" aria-label="Transcript vocabulary">
+      <div class="vocabulary-toolbar">
+        <div>
+          <span class="quiz-empty-kicker">Transcript Vocabulary</span>
+          <p class="question-note">${items.length} suggested words. Save the ones you want to review later.</p>
+        </div>
+        <button type="button" class="button-ghost" data-vocabulary-action="quiz">
+          Start Mini Quiz
+        </button>
+      </div>
+      <div class="vocabulary-list">
+        ${items
+          .map((item) => {
+            const encodedTerm = encodeURIComponent(item.term)
+            return `
+              <article class="vocabulary-card">
+                <div class="vocabulary-card-header">
+                  <div>
+                    <h3 class="vocabulary-term">${escapeHtml(item.term)}</h3>
+                    <span class="difficulty-badge is-${escapeHtml(item.difficulty)}">${escapeHtml(item.difficulty)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="${item.isSaved ? "button-text" : "button-ghost"}"
+                    data-vocabulary-save-term="${encodedTerm}"
+                    ${item.isSaved ? "disabled" : ""}
+                  >
+                    ${item.isSaved ? "Saved" : "Save Word"}
+                  </button>
+                </div>
+                <p class="vocabulary-definition">${escapeHtml(item.definition)}</p>
+                <p class="vocabulary-context">${escapeHtml(item.contextSentence)}</p>
+              </article>
+            `
+          })
+          .join("")}
+      </div>
+      ${buildVocabularyQuizMarkup()}
+    </section>
+  `
+}
+
 const refreshProfileStatsInBackground = async () => {
   try {
     await loadProfileData({ silent: true })
@@ -481,6 +867,7 @@ const renderProfile = () => {
   elements.metricAverageAccuracy.textContent = formatPercent(stats.average_accuracy)
   elements.metricTotalQuizzes.textContent = String(stats.total_quizzes)
   elements.metricAverageQuizScore.textContent = formatPercent(stats.average_quiz_score)
+  renderLearningAnalytics()
 }
 
 const renderRows = () => {
@@ -616,32 +1003,6 @@ const renderPreviewPanel = () => {
   const previewQuizMarkup = shouldShowPreviewQuiz
     ? `
       <div class="preview-generated-quiz">
-        <div class="quiz-footer-actions quiz-footer-actions-sticky">
-          <button type="button" class="button-ghost" data-preview-quiz-action="regenerate">
-            Regenerate Quiz
-          </button>
-          ${
-            submittedPreviewAttempt
-              ? `
-                <button type="button" class="button-ghost" data-preview-quiz-action="retake">
-                  Retake Quiz
-                </button>
-              `
-              : ""
-          }
-          <button
-            type="button"
-            class="button-primary"
-            data-preview-quiz-action="submit"
-            ${
-              state.isSubmittingAttempt || submittedPreviewAttempt || !hasAnsweredEveryQuestion()
-                ? "disabled"
-                : ""
-            }
-          >
-            ${state.isSubmittingAttempt ? "Submitting..." : submittedPreviewAttempt ? "Submitted" : "Submit Quiz"}
-          </button>
-        </div>
         <div class="quiz-list">
           ${state.currentQuizQuestions
             .map((question, index) => {
@@ -726,6 +1087,32 @@ const renderPreviewPanel = () => {
             ? `<p class="${getQuizNoticeClassName()}" role="status">${state.quizNotice}</p>`
             : ""
         }
+        <div class="quiz-footer-actions">
+          <button type="button" class="button-ghost" data-preview-quiz-action="regenerate">
+            Regenerate Quiz
+          </button>
+          ${
+            submittedPreviewAttempt
+              ? `
+                <button type="button" class="button-ghost" data-preview-quiz-action="retake">
+                  Retake Quiz
+                </button>
+              `
+              : ""
+          }
+          <button
+            type="button"
+            class="button-primary"
+            data-preview-quiz-action="submit"
+            ${
+              state.isSubmittingAttempt || submittedPreviewAttempt || !hasAnsweredEveryQuestion()
+                ? "disabled"
+                : ""
+            }
+          >
+            ${state.isSubmittingAttempt ? "Submitting..." : submittedPreviewAttempt ? "Submitted" : "Submit Quiz"}
+          </button>
+        </div>
       </div>
     `
     : ""
@@ -812,6 +1199,15 @@ const renderPreviewPanel = () => {
         >
           Attempt History
         </button>
+        <button
+          type="button"
+          class="preview-tab ${state.activePreviewTab === "vocabulary" ? "is-active" : ""}"
+          data-preview-tab="vocabulary"
+          role="tab"
+          aria-selected="${state.activePreviewTab === "vocabulary"}"
+        >
+          Vocabulary
+        </button>
       </div>
       ${
         state.activePreviewTab === "history"
@@ -819,6 +1215,8 @@ const renderPreviewPanel = () => {
             ${state.quizNotice ? `<p class="${getQuizNoticeClassName()}" role="status">${state.quizNotice}</p>` : ""}
             ${previewAttemptHistoryMarkup}
           `
+          : state.activePreviewTab === "vocabulary"
+            ? buildVocabularyMarkup()
           : `
             <div class="preview-header">
               <div>
@@ -1153,6 +1551,8 @@ const renderQuizPanel = () => {
 
 const renderAll = () => {
   renderProfile()
+  renderLearningAnalytics()
+  renderDashboardView()
   renderRows()
   renderPreviewPanel()
   renderQuizPanel()
@@ -1315,6 +1715,118 @@ const loadAttemptHistoryForSession = async (sessionId, { force = false } = {}) =
 
   renderPreviewPanel()
   renderQuizPanel()
+}
+
+const loadVocabularyForSession = async (sessionId, { force = false } = {}) => {
+  if (!force && state.vocabularyBySessionId.has(sessionId)) {
+    renderPreviewPanel()
+    return
+  }
+
+  state.loadingVocabularySessionIds.add(sessionId)
+  state.vocabularyErrorsBySessionId.delete(sessionId)
+  renderPreviewPanel()
+
+  try {
+    const response = await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary`)
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response))
+    }
+
+    const payload = await response.json()
+    const items = Array.isArray(payload.items)
+      ? payload.items.map(normalizeVocabularyItem)
+      : []
+    state.vocabularyBySessionId.set(sessionId, items)
+  } catch (error) {
+    state.vocabularyErrorsBySessionId.set(
+      sessionId,
+      error instanceof Error ? error.message : "Could not load vocabulary.",
+    )
+  } finally {
+    state.loadingVocabularySessionIds.delete(sessionId)
+  }
+
+  renderPreviewPanel()
+}
+
+const loadVocabularyQuizForSession = async (sessionId, { force = false } = {}) => {
+  if (!force && state.vocabularyQuizBySessionId.has(sessionId)) {
+    renderPreviewPanel()
+    return
+  }
+
+  state.loadingVocabularyQuizSessionIds.add(sessionId)
+  state.vocabularyQuizErrorsBySessionId.delete(sessionId)
+  renderPreviewPanel()
+
+  try {
+    const response = await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary/quiz`)
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response))
+    }
+
+    const payload = await response.json()
+    const questions = Array.isArray(payload.questions)
+      ? payload.questions.map(normalizeVocabularyQuizQuestion)
+      : []
+    state.vocabularyQuizBySessionId.set(sessionId, questions)
+    state.vocabularyQuizAnswersBySessionId.set(sessionId, {})
+  } catch (error) {
+    state.vocabularyQuizErrorsBySessionId.set(
+      sessionId,
+      error instanceof Error ? error.message : "Could not build vocabulary quiz.",
+    )
+  } finally {
+    state.loadingVocabularyQuizSessionIds.delete(sessionId)
+  }
+
+  renderPreviewPanel()
+}
+
+const saveVocabularyItemForCurrentSession = async (term) => {
+  if (!state.selectedSessionId) {
+    return
+  }
+
+  const sessionId = state.selectedSessionId
+  const currentItems = state.vocabularyBySessionId.get(sessionId) ?? []
+  const item = currentItems.find((candidate) => candidate.term === term)
+  if (!item || item.isSaved) {
+    return
+  }
+
+  try {
+    const response = await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary`, {
+      method: "POST",
+      body: JSON.stringify({
+        term: item.term,
+        context_sentence: item.contextSentence,
+        definition: item.definition,
+        difficulty: item.difficulty,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response))
+    }
+
+    const savedItem = normalizeVocabularyItem(await response.json())
+    state.vocabularyBySessionId.set(
+      sessionId,
+      currentItems.map((candidate) => {
+        return candidate.term === term ? savedItem : candidate
+      }),
+    )
+    state.vocabularyQuizBySessionId.delete(sessionId)
+    state.vocabularyQuizAnswersBySessionId.delete(sessionId)
+  } catch (error) {
+    state.vocabularyErrorsBySessionId.set(
+      sessionId,
+      error instanceof Error ? error.message : "Could not save this word.",
+    )
+  }
+
+  renderPreviewPanel()
 }
 
 const refreshProfileSummary = async () => {
@@ -1559,6 +2071,25 @@ const bindEvents = () => {
     event.preventDefault()
   })
 
+  elements.dashboardTabs.addEventListener("click", (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      return
+    }
+
+    const tab = target.closest("[data-dashboard-tab]")
+    if (!tab) {
+      return
+    }
+
+    event.preventDefault()
+    const nextTab = tab.dataset.dashboardTab
+    if (nextTab === "workspace" || nextTab === "analytics") {
+      state.activeDashboardTab = nextTab
+      renderDashboardView()
+    }
+  })
+
   elements.previewPanel.addEventListener("click", (event) => {
     const target = event.target
     if (!(target instanceof Element)) {
@@ -1569,12 +2100,39 @@ const bindEvents = () => {
     if (previewTab) {
       event.preventDefault()
       const nextTab = previewTab.dataset.previewTab
-      if (nextTab === "transcript" || nextTab === "history") {
+      if (nextTab === "transcript" || nextTab === "history" || nextTab === "vocabulary") {
         state.activePreviewTab = nextTab
         state.quizNotice = ""
         renderPreviewPanel()
         renderQuizPanel()
+        if (nextTab === "vocabulary" && state.selectedSessionId) {
+          void loadVocabularyForSession(state.selectedSessionId)
+        }
       }
+      return
+    }
+
+    const vocabularyAction = target.closest("[data-vocabulary-action]")
+    if (vocabularyAction) {
+      event.preventDefault()
+      const action = vocabularyAction.dataset.vocabularyAction
+      if (!state.selectedSessionId) {
+        return
+      }
+      if (action === "reload") {
+        void loadVocabularyForSession(state.selectedSessionId, { force: true })
+      }
+      if (action === "quiz") {
+        void loadVocabularyQuizForSession(state.selectedSessionId, { force: true })
+      }
+      return
+    }
+
+    const vocabularySaveButton = target.closest("[data-vocabulary-save-term]")
+    if (vocabularySaveButton) {
+      event.preventDefault()
+      const term = decodeURIComponent(vocabularySaveButton.dataset.vocabularySaveTerm ?? "")
+      void saveVocabularyItemForCurrentSession(term)
       return
     }
 
@@ -1628,6 +2186,20 @@ const bindEvents = () => {
     }
     if (target instanceof HTMLSelectElement && target.id === "generate-quiz-question-type") {
       state.quizQuestionType = target.value
+      return
+    }
+    if (target instanceof HTMLInputElement && target.dataset.vocabularyQuestionIndex) {
+      const questionIndex = Number(target.dataset.vocabularyQuestionIndex)
+      if (!state.selectedSessionId || Number.isNaN(questionIndex)) {
+        return
+      }
+
+      const currentAnswers = state.vocabularyQuizAnswersBySessionId.get(state.selectedSessionId) ?? {}
+      state.vocabularyQuizAnswersBySessionId.set(state.selectedSessionId, {
+        ...currentAnswers,
+        [questionIndex]: target.value,
+      })
+      renderPreviewPanel()
       return
     }
     if (!(target instanceof HTMLInputElement) || !target.dataset.previewQuestionId) {

@@ -16,6 +16,7 @@ from app.business.services.quiz_service import QuizService
 from app.business.services.scoring_service import ScoringService
 from app.business.services.session_history_service import SessionHistoryService
 from app.business.services.subtitle_service import SubtitleService
+from app.business.services.vocabulary_service import VocabularyService
 from app.config.settings import get_settings
 from app.data_access.adapters.llm_adapter import MockLLMQuizAdapter
 from app.data_access.adapters.llm_adapter import OpenRouterLLMQuizAdapter
@@ -24,6 +25,7 @@ from app.data_access.repositories.quiz_repository import QuizRepository
 from app.data_access.repositories.session_repository import SessionRepository
 from app.data_access.repositories.transcript_repository import TranscriptRepository
 from app.data_access.repositories.user_repository import UserRepository
+from app.data_access.repositories.vocabulary_repository import VocabularyRepository
 from app.presentation.dependencies.database import get_db_session
 
 
@@ -91,6 +93,12 @@ def get_quiz_repository(
     return QuizRepository(session=session)
 
 
+def get_vocabulary_repository(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> VocabularyRepository:
+    return VocabularyRepository(session=session)
+
+
 def get_auth_service(
     user_repository: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> AuthService:
@@ -150,4 +158,22 @@ def get_quiz_generation_service(
         quiz_repository=quiz_repository,
         llm_provider=get_llm_quiz_provider(),
         question_count=settings.ai_quiz_question_count,
+    )
+
+
+def get_vocabulary_service(
+    session_repository: Annotated[SessionRepository, Depends(get_session_repository)],
+    transcript_repository: Annotated[
+        TranscriptRepository,
+        Depends(get_transcript_repository),
+    ],
+    vocabulary_repository: Annotated[
+        VocabularyRepository,
+        Depends(get_vocabulary_repository),
+    ],
+) -> VocabularyService:
+    return VocabularyService(
+        session_repository=session_repository,
+        transcript_repository=transcript_repository,
+        vocabulary_repository=vocabulary_repository,
     )

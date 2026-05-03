@@ -49,7 +49,7 @@ class SessionRepository:
         *,
         user_id: int,
         query: str | None = None,
-        limit: int = 20,
+        limit: int | None = 20,
         offset: int = 0,
     ) -> list[ShadowingSession]:
         statement = select(ShadowingSessionORM).where(ShadowingSessionORM.user_id == user_id)
@@ -63,12 +63,9 @@ class SessionRepository:
                 )
             )
 
-        statement = (
-            statement
-            .order_by(ShadowingSessionORM.completed_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        statement = statement.order_by(ShadowingSessionORM.completed_at.desc()).offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         return [self._to_domain(item) for item in self._session.scalars(statement)]
 
     def get_session_for_user(

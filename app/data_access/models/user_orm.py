@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.data_access.models.quiz_attempt_orm import QuizAttemptORM
     from app.data_access.models.quiz_orm import QuizORM
     from app.data_access.models.shadowing_session_orm import ShadowingSessionORM
+    from app.data_access.models.vocabulary_orm import VocabularyItemORM
 
 
 class UserORM(Base):
@@ -37,6 +38,10 @@ class UserORM(Base):
         cascade="all, delete-orphan",
     )
     quiz_attempts: Mapped[list["QuizAttemptORM"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    vocabulary_items: Mapped[list["VocabularyItemORM"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

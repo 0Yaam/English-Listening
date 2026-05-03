@@ -18,6 +18,7 @@ from app.data_access.models import quiz_orm  # noqa: F401
 from app.data_access.models import shadowing_session_orm  # noqa: F401
 from app.data_access.models import transcript_orm  # noqa: F401
 from app.data_access.models import user_orm  # noqa: F401
+from app.data_access.models import vocabulary_orm  # noqa: F401
 
 
 def _build_test_client(database_path: Path) -> TestClient:
@@ -77,6 +78,20 @@ def _session_payload() -> dict[str, object]:
             "language_code": "en",
         },
     }
+
+
+def _vocabulary_session_payload() -> dict[str, object]:
+    payload = _session_payload()
+    payload["transcript"] = {
+        "raw_text": (
+            "Consistent listening practice improves comprehension and confidence. "
+            "Learners reduce resistance when they repeat short audio segments and "
+            "review unfamiliar vocabulary in context."
+        ),
+        "language": "English",
+        "language_code": "en",
+    }
+    return payload
 
 
 def test_cannot_create_session_without_auth(tmp_path: Path) -> None:
@@ -257,6 +272,119 @@ def test_user_a_cannot_access_user_b_transcript(tmp_path: Path) -> None:
 
     response = client.get(
         f"/api/v1/sessions/{session_id}/transcript",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+
+    assert response.status_code == 404
+    app.dependency_overrides.clear()
+
+
+def test_session_vocabulary_can_be_extracted_and_saved(tmp_path: Path) -> None:
+    client = _build_test_client(tmp_path / "sessions-vocabulary.db")
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh@example.com",
+    )
+
+    create_response = client.post(
+        "/api/v1/sessions",
+        json=_vocabulary_session_payload(),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert create_response.status_code == 201
+    session_id = create_response.json()["session_id"]
+
+    vocabulary_response = client.get(
+        f"/api/v1/sessions/{session_id}/vocabulary",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert vocabulary_response.status_code == 200
+    items = vocabulary_response.json()["items"]
+    assert len(items) > 0
+    first_item = items[0]
+    assert first_item["is_saved"] is False
+
+    save_response = client.post(
+        f"/api/v1/sessions/{session_id}/vocabulary",
+        json={
+            "term": first_item["term"],
+            "context_sentence": first_item["context_sentence"],
+            "definition": first_item["definition"],
+            "difficulty": first_item["difficulty"],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert save_response.status_code == 200
+    saved_payload = save_response.json()
+    assert saved_payload["is_saved"] is True
+    assert saved_payload["id"] is not None
+
+    refreshed_response = client.get(
+        f"/api/v1/sessions/{session_id}/vocabulary",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    refreshed_items = refreshed_response.json()["items"]
+    assert refreshed_items[0]["term"] == first_item["term"]
+    assert refreshed_items[0]["is_saved"] is True
+    app.dependency_overrides.clear()
+
+
+def test_session_vocabulary_quiz_returns_cloze_questions(tmp_path: Path) -> None:
+    client = _build_test_client(tmp_path / "sessions-vocabulary-quiz.db")
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh@example.com",
+    )
+
+    create_response = client.post(
+        "/api/v1/sessions",
+        json=_vocabulary_session_payload(),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert create_response.status_code == 201
+    session_id = create_response.json()["session_id"]
+
+    response = client.get(
+        f"/api/v1/sessions/{session_id}/vocabulary/quiz",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["session_id"] == session_id
+    assert len(payload["questions"]) > 0
+    assert "____" in payload["questions"][0]["prompt"]
+    assert payload["questions"][0]["correct_answer"] in payload["questions"][0]["options"]
+    app.dependency_overrides.clear()
+
+
+def test_user_a_cannot_access_user_b_vocabulary(tmp_path: Path) -> None:
+    client = _build_test_client(tmp_path / "sessions-vocabulary-ownership.db")
+    token_a = _register_and_get_token(
+        client,
+        username="usera",
+        email="a@example.com",
+    )
+    token_b = _register_and_get_token(
+        client,
+        username="userb",
+        email="b@example.com",
+    )
+
+    create_response = client.post(
+        "/api/v1/sessions",
+        json=_vocabulary_session_payload(),
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert create_response.status_code == 201
+    session_id = create_response.json()["session_id"]
+
+    response = client.get(
+        f"/api/v1/sessions/{session_id}/vocabulary",
         headers={"Authorization": f"Bearer {token_b}"},
     )
 

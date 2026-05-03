@@ -20,6 +20,7 @@ from app.data_access.models import quiz_orm  # noqa: F401
 from app.data_access.models import shadowing_session_orm  # noqa: F401
 from app.data_access.models import transcript_orm  # noqa: F401
 from app.data_access.models import user_orm  # noqa: F401
+from app.data_access.models import vocabulary_orm  # noqa: F401
 
 
 def _build_test_client(database_path: Path, monkeypatch) -> TestClient:
@@ -221,6 +222,11 @@ def test_profile_stats_are_correct_after_sessions_transcripts_and_quizzes(
     assert stats["average_accuracy"] == 85.0
     assert stats["total_quizzes"] == 1
     assert stats["average_quiz_score"] == 100.0
+    analytics = response.json()["analytics"]
+    assert analytics["accuracy_by_day"]
+    assert analytics["quiz_score_by_day"]
+    assert analytics["sessions_by_week"]
+    assert analytics["weakest_skill"]["label"]
     app.dependency_overrides.clear()
 
 

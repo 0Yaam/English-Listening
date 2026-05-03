@@ -50,12 +50,53 @@ class RecentSessionResponse(BaseModel):
         )
 
 
+class AccuracyByDayResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    date: str
+    average_accuracy: float
+    session_count: int
+
+
+class QuizScoreByDayResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    date: str
+    average_score: float
+    attempt_count: int
+
+
+class SessionsByWeekResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    week_start: str
+    session_count: int
+
+
+class WeakestSkillResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    label: str
+    missed_count: int
+    summary: str
+
+
+class LearningAnalyticsResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    accuracy_by_day: list[AccuracyByDayResponse]
+    quiz_score_by_day: list[QuizScoreByDayResponse]
+    sessions_by_week: list[SessionsByWeekResponse]
+    weakest_skill: WeakestSkillResponse
+
+
 class ProfileResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     user: UserResponse
     stats: ProfileStatsResponse
     recent_sessions: list[RecentSessionResponse]
+    analytics: LearningAnalyticsResponse
 
     @classmethod
     def from_payload(cls, payload: dict[str, object]) -> "ProfileResponse":
@@ -63,6 +104,7 @@ class ProfileResponse(BaseModel):
         return cls(
             user=UserResponse.from_domain(payload["user"]),
             stats=ProfileStatsResponse(**payload["stats"]),
+            analytics=LearningAnalyticsResponse(**payload["analytics"]),
             recent_sessions=[
                 RecentSessionResponse.from_domain(
                     session=item["session"],

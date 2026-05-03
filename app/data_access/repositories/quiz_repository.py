@@ -165,6 +165,50 @@ class QuizRepository:
         )
         return [self._to_attempt_domain(attempt) for attempt in self._session.scalars(statement)]
 
+    def list_attempts_by_user(
+        self,
+        *,
+        user_id: int,
+        limit: int | None = None,
+    ) -> list[QuizAttempt]:
+        statement = (
+            select(QuizAttemptORM)
+            .options(selectinload(QuizAttemptORM.answers))
+            .where(QuizAttemptORM.user_id == user_id)
+            .order_by(QuizAttemptORM.submitted_at.desc(), QuizAttemptORM.id.desc())
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return [self._to_attempt_domain(attempt) for attempt in self._session.scalars(statement)]
+
+    def list_incorrect_question_texts_by_user(
+        self,
+        *,
+        user_id: int,
+        limit: int = 200,
+    ) -> list[tuple[str, str]]:
+        statement = (
+            select(QuizQuestionORM.question, QuizQuestionORM.explanation)
+            .join(
+                QuizAttemptAnswerORM,
+                QuizAttemptAnswerORM.question_id == QuizQuestionORM.id,
+            )
+            .join(
+                QuizAttemptORM,
+                QuizAttemptORM.id == QuizAttemptAnswerORM.attempt_id,
+            )
+            .where(
+                QuizAttemptORM.user_id == user_id,
+                QuizAttemptAnswerORM.is_correct.is_(False),
+            )
+            .order_by(QuizAttemptORM.submitted_at.desc(), QuizAttemptORM.id.desc())
+            .limit(limit)
+        )
+        return [
+            (str(question), str(explanation))
+            for question, explanation in self._session.execute(statement).all()
+        ]
+
     def count_quizzes_by_user(self, user_id: int) -> int:
         statement = select(func.count(QuizORM.id)).where(QuizORM.user_id == user_id)
         return int(self._session.scalar(statement) or 0)

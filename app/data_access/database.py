@@ -63,5 +63,6 @@ def init_db() -> None:
     from app.data_access.models import shadowing_session_orm  # noqa: F401
     from app.data_access.models import transcript_orm  # noqa: F401
     from app.data_access.models import user_orm  # noqa: F401
+    from app.data_access.models import vocabulary_orm  # noqa: F401
 
     Base.metadata.create_all(bind=get_engine())

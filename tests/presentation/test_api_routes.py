@@ -118,7 +118,7 @@ def test_profile_page_is_served() -> None:
     response = client.get("/profile")
 
     assert response.status_code == 200
-    assert "User Profile & Transcript History" in response.text
+    assert "Learning Dashboard" in response.text
 
 
 def test_login_page_is_served() -> None:

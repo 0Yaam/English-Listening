@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Profile & Transcript History</title>
-    <link rel="stylesheet" href="/static/profile.css?v=20260503s" />
+    <title>Learning Dashboard</title>
+    <link rel="stylesheet" href="/static/profile.css?v=20260503v" />
   </head>
   <body>
     <div class="profile-shell">
@@ -80,7 +80,33 @@
             </form>
           </header>
 
-          <div class="transcript-layout">
+          <nav class="dashboard-tabs" aria-label="Profile workspace">
+            <button
+              type="button"
+              class="dashboard-tab is-active"
+              data-dashboard-tab="workspace"
+              aria-selected="true"
+            >
+              Transcript Workspace
+            </button>
+            <button
+              type="button"
+              class="dashboard-tab"
+              data-dashboard-tab="analytics"
+              aria-selected="false"
+            >
+              Learning Analytics
+            </button>
+          </nav>
+
+          <section
+            id="learning-analytics-panel"
+            class="learning-analytics"
+            aria-labelledby="learning-analytics-title"
+            hidden
+          ></section>
+
+          <div id="transcript-layout" class="transcript-layout">
             <section class="transcript-list" aria-labelledby="transcript-list-title">
               <div class="panel-heading">
                 <div>
@@ -135,6 +161,6 @@
       </div>
     </div>
 
-    <script type="module" src="/static/profile.js?v=20260503s"></script>
+    <script type="module" src="/static/profile.js?v=20260503v"></script>
   </body>
 </html>
