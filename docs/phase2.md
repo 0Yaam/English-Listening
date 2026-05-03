@@ -211,22 +211,15 @@ Behavior:
 - deterministic quiz output
 - safe for tests and offline demos
 
-## How to Configure OpenAI or Gemini
-
-### OpenAI
+## How to Configure OpenRouter
 
 ```powershell
-$env:LLM_PROVIDER="openai"
-$env:OPENAI_API_KEY="your-api-key"
-$env:OPENAI_MODEL="gpt-4o-mini"
-```
-
-### Gemini
-
-```powershell
-$env:LLM_PROVIDER="gemini"
-$env:GEMINI_API_KEY="your-api-key"
-$env:GEMINI_MODEL="gemini-2.0-flash"
+$env:LLM_PROVIDER="openrouter"
+$env:OPENROUTER_API_KEY="your-api-key"
+$env:OPENROUTER_MODEL="openai/gpt-4o-mini"
+$env:OPENROUTER_SITE_URL="http://localhost:8000"
+$env:OPENROUTER_APP_TITLE="English Listening"
+$env:OPENROUTER_QUIZ_DIFFICULTY="challenging"
 ```
 
 ### AI question count

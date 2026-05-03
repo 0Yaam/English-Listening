@@ -171,15 +171,15 @@ def generate_quiz_for_session(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from None
-    except LLMQuizOutputValidationError:
+    except LLMQuizOutputValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI provider returned an invalid quiz format.",
+            detail=str(exc),
         ) from None
-    except LLMQuizProviderError:
+    except LLMQuizProviderError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not generate a reading quiz right now.",
+            detail=str(exc),
         ) from None
 
     session_result = session_service.get_session_for_user(

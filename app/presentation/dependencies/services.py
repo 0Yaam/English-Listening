@@ -17,9 +17,8 @@ from app.business.services.scoring_service import ScoringService
 from app.business.services.session_history_service import SessionHistoryService
 from app.business.services.subtitle_service import SubtitleService
 from app.config.settings import get_settings
-from app.data_access.adapters.llm_adapter import GeminiLLMQuizAdapter
 from app.data_access.adapters.llm_adapter import MockLLMQuizAdapter
-from app.data_access.adapters.llm_adapter import OpenAILLMQuizAdapter
+from app.data_access.adapters.llm_adapter import OpenRouterLLMQuizAdapter
 from app.data_access.adapters.youtube_subtitle_adapter import YouTubeSubtitleAdapter
 from app.data_access.repositories.quiz_repository import QuizRepository
 from app.data_access.repositories.session_repository import SessionRepository
@@ -42,15 +41,13 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
     settings = get_settings()
     configured_provider = settings.llm_provider.strip().lower()
 
-    if configured_provider == "openai" and settings.openai_api_key:
-        return OpenAILLMQuizAdapter(
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
-        )
-    if configured_provider == "gemini" and settings.gemini_api_key:
-        return GeminiLLMQuizAdapter(
-            api_key=settings.gemini_api_key,
-            model=settings.gemini_model,
+    if configured_provider == "openrouter" and settings.openrouter_api_key:
+        return OpenRouterLLMQuizAdapter(
+            api_key=settings.openrouter_api_key,
+            model=settings.openrouter_model,
+            site_url=settings.openrouter_site_url,
+            app_title=settings.openrouter_app_title,
+            difficulty=settings.openrouter_quiz_difficulty,
         )
 
     return MockLLMQuizAdapter()

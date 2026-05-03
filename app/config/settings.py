@@ -4,6 +4,33 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import lru_cache
 import os
+from pathlib import Path
+
+
+_ENV_FILE_PATH = Path(__file__).resolve().parents[2] / ".env"
+
+
+def _strip_optional_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def _load_env_file(path: Path = _ENV_FILE_PATH) -> None:
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+
+        os.environ[key] = _strip_optional_quotes(value.strip())
 
 
 def _read_bool_env(name: str, default: bool) -> bool:
@@ -41,17 +68,20 @@ class Settings:
     llm_provider: str = field(
         default_factory=lambda: os.getenv("LLM_PROVIDER", "mock"),
     )
-    openai_api_key: str | None = field(
-        default_factory=lambda: os.getenv("OPENAI_API_KEY"),
+    openrouter_api_key: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_API_KEY"),
     )
-    openai_model: str = field(
-        default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+    openrouter_model: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
     )
-    gemini_api_key: str | None = field(
-        default_factory=lambda: os.getenv("GEMINI_API_KEY"),
+    openrouter_site_url: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_SITE_URL"),
     )
-    gemini_model: str = field(
-        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+    openrouter_app_title: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_APP_TITLE", "English Listening"),
+    )
+    openrouter_quiz_difficulty: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_QUIZ_DIFFICULTY", "challenging"),
     )
     ai_quiz_question_count: int = field(
         default_factory=lambda: int(os.getenv("AI_QUIZ_QUESTION_COUNT", "5")),
@@ -60,5 +90,6 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    _load_env_file()
     return Settings()
 

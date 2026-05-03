@@ -21,15 +21,24 @@ _PROMPT_TEMPLATE = """You are an English reading comprehension assessment genera
 
 Generate multiple-choice reading comprehension questions based only on the transcript below.
 
+Difficulty target: {difficulty}
+
 Rules:
 - Only use information from the transcript.
 - Do not invent facts outside the transcript.
-- Questions should test understanding, not simple word matching.
+- Questions should test inference, cause/effect, main idea, contrast, and practical interpretation.
+- Avoid generic wording like "which statement best captures the idea highlighted in question".
+- Avoid copying full transcript sentences as the correct option.
+- Distractors should sound plausible but be clearly wrong based on the transcript.
+- At least 3 questions should require connecting two ideas from different parts of the transcript.
+- At least 2 questions should ask about implication, author/speaker intent, or why a strategy works.
+- Make options concise and natural, but not obvious.
+- Explanations should cite the reasoning, not merely repeat the correct option.
 - Generate exactly {question_count} questions unless configured otherwise.
 - Each question must have 4 options: A, B, C, D.
 - Only one option is correct.
 - correct_answer must be one of: A, B, C, D.
-- Provide a short explanation for the correct answer.
+- Provide a short explanation for why the correct answer follows from the transcript.
 - Return valid JSON only.
 - Do not include markdown.
 - Do not include extra text before or after the JSON.
@@ -214,7 +223,7 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "questions": _QUESTION_LIST_ADAPTER.json_schema(),
+                            "questions": _question_list_json_schema(),
                         },
                         "required": ["questions"],
                         "additionalProperties": False,
@@ -259,6 +268,112 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
             raise LLMQuizProviderError("Could not reach OpenAI.") from exc
         except json.JSONDecodeError as exc:
             raise LLMQuizProviderError("OpenAI returned a malformed response.") from exc
+
+
+class OpenRouterLLMQuizAdapter(LLMQuizProvider):
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        site_url: str | None = None,
+        app_title: str | None = None,
+        difficulty: str = "challenging",
+    ) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._site_url = site_url
+        self._app_title = app_title
+        self._difficulty = difficulty
+
+    def generate_questions(
+        self,
+        *,
+        raw_text: str,
+        question_count: int,
+    ) -> list[QuizQuestionDraft]:
+        payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You create challenging English reading comprehension quizzes. "
+                        "Return only valid JSON that matches the requested schema."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": _build_prompt(
+                        raw_text=raw_text,
+                        question_count=question_count,
+                        difficulty=self._difficulty,
+                    ),
+                },
+            ],
+            "temperature": 0.35,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "reading_quiz",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "questions": _question_list_json_schema(),
+                        },
+                        "required": ["questions"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+        }
+        response_payload = self._post_json(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers=self._build_headers(),
+            payload=payload,
+        )
+
+        try:
+            content = response_payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMQuizProviderError("OpenRouter did not return a usable response.") from exc
+
+        if not isinstance(content, str):
+            raise LLMQuizProviderError("OpenRouter returned an unexpected content format.")
+
+        return _parse_generated_questions(content)
+
+    def _build_headers(self) -> dict[str, str]:
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        if self._site_url:
+            headers["HTTP-Referer"] = self._site_url
+        if self._app_title:
+            headers["X-OpenRouter-Title"] = self._app_title
+        return headers
+
+    @staticmethod
+    def _post_json(
+        *,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        body = json.dumps(payload).encode("utf-8")
+        http_request = request.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with request.urlopen(http_request, timeout=60) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            error_message = _read_http_error_message(exc)
+            raise LLMQuizProviderError(f"OpenRouter request failed: {error_message}") from exc
+        except error.URLError as exc:
+            raise LLMQuizProviderError("Could not reach OpenRouter.") from exc
+        except json.JSONDecodeError as exc:
+            raise LLMQuizProviderError("OpenRouter returned a malformed response.") from exc
 
 
 class GeminiLLMQuizAdapter(LLMQuizProvider):
@@ -333,11 +448,45 @@ class GeminiLLMQuizAdapter(LLMQuizProvider):
             raise LLMQuizProviderError("Gemini returned a malformed response.") from exc
 
 
-def _build_prompt(*, raw_text: str, question_count: int) -> str:
+def _build_prompt(
+    *,
+    raw_text: str,
+    question_count: int,
+    difficulty: str = "standard",
+) -> str:
     return _PROMPT_TEMPLATE.format(
         question_count=question_count,
+        difficulty=difficulty.strip() or "standard",
         raw_transcript=raw_text.strip(),
     )
+
+
+def _question_list_json_schema() -> dict[str, Any]:
+    return {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string", "minLength": 1},
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "A": {"type": "string", "minLength": 1},
+                        "B": {"type": "string", "minLength": 1},
+                        "C": {"type": "string", "minLength": 1},
+                        "D": {"type": "string", "minLength": 1},
+                    },
+                    "required": ["A", "B", "C", "D"],
+                    "additionalProperties": False,
+                },
+                "correct_answer": {"type": "string", "enum": ["A", "B", "C", "D"]},
+                "explanation": {"type": "string", "minLength": 1},
+            },
+            "required": ["question", "options", "correct_answer", "explanation"],
+            "additionalProperties": False,
+        },
+    }
 
 
 def _parse_generated_questions(content: str) -> list[QuizQuestionDraft]:
@@ -364,3 +513,31 @@ def _parse_generated_questions(content: str) -> list[QuizQuestionDraft]:
         )
         for item in generated_questions
     ]
+
+
+def _read_http_error_message(exc: error.HTTPError) -> str:
+    try:
+        body = exc.read().decode("utf-8", errors="replace")
+    except Exception:
+        body = ""
+
+    if not body:
+        return f"HTTP {exc.code}"
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return f"HTTP {exc.code}: {body[:500]}"
+
+    message: Any = payload
+    if isinstance(payload, dict):
+        message = payload.get("error", payload)
+        if isinstance(message, dict):
+            message_text = message.get("message", message)
+            metadata = message.get("metadata")
+            if metadata:
+                message = f"{message_text}; metadata={metadata}"
+            else:
+                message = message_text
+
+    return f"HTTP {exc.code}: {message}"

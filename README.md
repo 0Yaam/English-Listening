@@ -47,6 +47,13 @@ pip install -e .[dev]
 uvicorn app.main:app --reload
 ```
 
+Optional local config:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and add your provider API key, for example OPENROUTER_API_KEY.
+```
+
 Open:
 
 - `/`
