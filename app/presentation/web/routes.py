@@ -17,8 +17,11 @@ def get_index_page() -> FileResponse:
 
 
 @router.get("/profile")
-def get_profile_page() -> RedirectResponse:
-    return RedirectResponse(url="/static/profile.html")
+def get_profile_page() -> FileResponse:
+    return FileResponse(
+        _STATIC_DIR / "profile.html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.get("/login")

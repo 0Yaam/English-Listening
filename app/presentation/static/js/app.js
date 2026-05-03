@@ -145,10 +145,6 @@ class AppController {
       this.startSession()
     })
 
-    this.elements.replaySegmentButton.addEventListener("click", () => {
-      this.replayCurrentSegment()
-    })
-
     this.elements.answerForm.addEventListener("submit", (event) => {
       void this.handleAnswerSubmit(event)
     })
@@ -279,6 +275,7 @@ class AppController {
       })
       const isCorrect = scorePayload.accuracy === 100
 
+      this.clearPendingAdvance()
       this.session.results.push({
         prompt: currentItem.blanked_text,
         originalText: currentItem.original_text,
@@ -293,8 +290,6 @@ class AppController {
         scorePayload,
         isCorrect,
       })
-      this.elements.nextSegmentButton.hidden = false
-      this.elements.nextSegmentButton.disabled = false
 
       if (isCorrect) {
         this.setState(AppState.WAITING_FOR_INPUT)
@@ -302,17 +297,18 @@ class AppController {
         this.disableInlineInputs(true)
         this.elements.submitAnswerButton.disabled = true
         this.elements.submitAnswerButton.textContent = "Correct"
-        this.renderStatus("Correct. Move to the next segment when you are ready.", "success")
+        this.renderStatus("Correct. Moving to the next segment...", "success")
+        this.pendingAdvanceId = window.setTimeout(() => {
+          this.pendingAdvanceId = null
+          this.advanceToNextStep()
+        }, 650)
       } else {
         this.setState(AppState.WAITING_FOR_INPUT)
         this.setModeOverride("Needs review")
         this.disableInlineInputs(false)
         this.elements.submitAnswerButton.disabled = false
         this.elements.submitAnswerButton.textContent = "Check again"
-        this.renderStatus(
-          "Needs review. Edit the highlighted blanks or move to the next segment.",
-          "warning",
-        )
+        this.renderStatus("Needs review. Edit the highlighted blanks and press Enter again.", "warning")
         this.focusFirstIncorrectBlank()
       }
     } catch (error) {
@@ -399,8 +395,7 @@ class AppController {
       return
     }
 
-    window.clearTimeout(this.pendingAdvanceId)
-    this.pendingAdvanceId = null
+    this.clearPendingAdvance()
     this.hideFeedback()
     this.resetInlineInputs()
     this.clearBlankResults()
@@ -424,8 +419,7 @@ class AppController {
       return
     }
 
-    window.clearTimeout(this.pendingAdvanceId)
-    this.pendingAdvanceId = null
+    this.clearPendingAdvance()
     this.hideFeedback()
     this.renderCurrentPrompt()
     this.resetInlineInputs()
@@ -524,9 +518,15 @@ class AppController {
 
   resetPlayback() {
     this.stopFrameLoop()
-    window.clearTimeout(this.pendingAdvanceId)
-    this.pendingAdvanceId = null
+    this.clearPendingAdvance()
     this.playerController.pause()
+  }
+
+  clearPendingAdvance() {
+    if (this.pendingAdvanceId !== null) {
+      window.clearTimeout(this.pendingAdvanceId)
+      this.pendingAdvanceId = null
+    }
   }
 
   getCurrentItem() {
@@ -547,7 +547,6 @@ class AppController {
     this.elements.emptyState.hidden = true
     this.elements.exerciseWorkspace.hidden = false
     this.elements.answerForm.hidden = false
-    this.elements.replaySegmentButton.disabled = false
     this.elements.submitAnswerButton.textContent = "Check answer"
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
@@ -717,7 +716,6 @@ class AppController {
     this.elements.answerForm.hidden = true
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
-    this.elements.replaySegmentButton.disabled = true
     this.elements.workspaceStage.hidden = true
     this.elements.entryStage.hidden = false
     this.elements.topbarSessionLabel.hidden = true
@@ -726,7 +724,6 @@ class AppController {
 
   toggleSessionButtons(enabled) {
     this.elements.startSessionButton.disabled = !enabled
-    this.elements.replaySegmentButton.disabled = !enabled
   }
 
   renderStatus(message, variant = "default") {
@@ -849,17 +846,7 @@ class AppController {
   }
 
   handleGlobalKeydown(event) {
-    const isTypingInBlank = this.currentBlankInputs.includes(document.activeElement)
-
-    if (event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      if (this.session && this.state !== AppState.IDLE) {
-        event.preventDefault()
-        this.replayCurrentSegment()
-      }
-      return
-    }
-
-    if (event.code === "Space" && !isTypingInBlank) {
+    if (event.key === "Control" && !event.repeat && !event.metaKey && !event.altKey) {
       if (this.session && this.state === AppState.WAITING_FOR_INPUT) {
         event.preventDefault()
         this.replayCurrentSegment()
@@ -1007,12 +994,6 @@ class AppController {
         if (!this.elements.submitAnswerButton.disabled) {
           this.elements.answerForm.requestSubmit()
         }
-        return
-      }
-
-      if (event.key === " ") {
-        event.preventDefault()
-        this.replayCurrentSegment()
         return
       }
 
@@ -1337,7 +1318,6 @@ const elements = {
   difficultySelect: document.getElementById("difficulty"),
   startSessionButton: document.getElementById("start-session-button"),
   workspaceStateBadge: document.getElementById("workspace-state-badge"),
-  replaySegmentButton: document.getElementById("replay-segment-button"),
   answerForm: document.getElementById("answer-form"),
   submitAnswerButton: document.getElementById("submit-answer-button"),
   nextSegmentButton: document.getElementById("next-segment-button"),

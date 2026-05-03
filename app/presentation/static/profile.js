@@ -20,10 +20,14 @@ const state = {
   previewError: "",
   quizState: "empty",
   quizError: "",
+  quizNotice: "",
   isSubmittingAttempt: false,
+  quizSessionId: null,
   currentQuizId: null,
   currentQuizQuestions: [],
   selectedAnswersByQuestionId: {},
+  activeSelectionRequestId: 0,
+  generatingSessionIds: new Set(),
   sessionDetailsById: new Map(),
   quizzesBySessionId: new Map(),
   attemptResultsByQuizId: new Map(),
@@ -152,6 +156,23 @@ const updateSession = (nextSession) => {
   }
 }
 
+const syncSessionQuizStatus = (sessionId, quizStatus) => {
+  updateSession({
+    sessionId,
+    quizStatus,
+  })
+
+  const cachedDetail = state.sessionDetailsById.get(sessionId)
+  if (!cachedDetail) {
+    return
+  }
+
+  state.sessionDetailsById.set(sessionId, {
+    ...cachedDetail,
+    quizStatus,
+  })
+}
+
 const getStatusClassName = (quizStatus) => {
   if (quizStatus === "Quiz Ready") {
     return "status-ready"
@@ -178,6 +199,8 @@ const getFilteredSessions = () => {
 const clearCurrentQuizState = () => {
   state.quizState = "empty"
   state.quizError = ""
+  state.quizNotice = ""
+  state.quizSessionId = null
   state.currentQuizId = null
   state.currentQuizQuestions = []
   state.selectedAnswersByQuestionId = {}
@@ -185,11 +208,56 @@ const clearCurrentQuizState = () => {
 }
 
 const applyQuizToState = (quiz) => {
+  state.quizSessionId = quiz.sessionId
   state.currentQuizId = quiz.quizId
   state.currentQuizQuestions = quiz.questions
   state.quizState = quiz.questions.length > 0 ? "generated" : "empty"
   state.quizError = ""
+  state.quizNotice = ""
   state.selectedAnswersByQuestionId = {}
+}
+
+const restoreCachedQuizForSession = (sessionId) => {
+  const cachedQuiz = state.quizzesBySessionId.get(sessionId)
+  if (!cachedQuiz) {
+    return
+  }
+
+  const needsRestore =
+    state.quizSessionId !== sessionId ||
+    state.currentQuizId !== cachedQuiz.quizId ||
+    state.currentQuizQuestions.length === 0 ||
+    state.quizState !== "generated"
+
+  if (needsRestore) {
+    applyQuizToState(cachedQuiz)
+  }
+}
+
+const isGeneratingQuizForSession = (sessionId) => {
+  return state.generatingSessionIds.has(sessionId)
+}
+
+const getCurrentSubmittedAttempt = () => {
+  return state.currentQuizId ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null : null
+}
+
+const getAnsweredQuestionCount = () => {
+  return state.currentQuizQuestions.filter((question) => {
+    return Boolean(state.selectedAnswersByQuestionId[question.id])
+  }).length
+}
+
+const hasAnsweredEveryQuestion = () => {
+  return state.currentQuizQuestions.length > 0 && getAnsweredQuestionCount() === state.currentQuizQuestions.length
+}
+
+const refreshProfileStatsInBackground = async () => {
+  try {
+    await loadProfileData({ silent: true })
+  } catch {
+    return
+  }
 }
 
 const renderProfile = () => {
@@ -272,6 +340,7 @@ const renderRows = () => {
   for (const session of sessions) {
     const row = document.createElement("article")
     const isSelected = session.sessionId === state.selectedSessionId
+    const isGenerating = isGeneratingQuizForSession(session.sessionId)
     row.className = "transcript-row"
     row.tabIndex = 0
     row.setAttribute("role", "button")
@@ -297,7 +366,9 @@ const renderRows = () => {
       <div><span class="status-badge ${getStatusClassName(session.quizStatus)}">${session.quizStatus}</span></div>
       <div class="transcript-actions">
         <button type="button" class="button-text" data-action="view">View Transcript</button>
-        <button type="button" class="button-ghost" data-action="generate">Generate Quiz</button>
+        <button type="button" class="button-ghost" data-action="generate" ${
+          isGenerating ? "disabled" : ""
+        }>${isGenerating ? "Generating..." : "Generate Quiz"}</button>
       </div>
     `
 
@@ -311,11 +382,16 @@ const renderRows = () => {
       }
     })
     row.querySelector('[data-action="view"]').addEventListener("click", (event) => {
+      event.preventDefault()
       event.stopPropagation()
       void handleSelectSession(session.sessionId)
     })
     row.querySelector('[data-action="generate"]').addEventListener("click", (event) => {
+      event.preventDefault()
       event.stopPropagation()
+      if (isGeneratingQuizForSession(session.sessionId)) {
+        return
+      }
       void handleSelectSession(session.sessionId, { generateAfterSelect: true })
     })
 
@@ -325,6 +401,125 @@ const renderRows = () => {
 
 const renderPreviewPanel = () => {
   const selectedSession = getSelectedSession()
+  const isGeneratingSelectedQuiz = selectedSession
+    ? isGeneratingQuizForSession(selectedSession.sessionId)
+    : false
+  const shouldShowPreviewQuiz =
+    selectedSession &&
+    state.quizSessionId === selectedSession.sessionId &&
+    state.quizState === "generated" &&
+    state.currentQuizQuestions.length > 0
+  const submittedPreviewAttempt = state.currentQuizId
+    ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null
+    : null
+  const submittedPreviewResults = new Map(
+    (submittedPreviewAttempt?.results ?? []).map((item) => [item.question_id, item]),
+  )
+  const previewQuizMarkup = shouldShowPreviewQuiz
+    ? `
+      <div class="preview-generated-quiz">
+        <div class="quiz-footer-actions quiz-footer-actions-sticky">
+          <button type="button" class="button-ghost" data-preview-quiz-action="regenerate">
+            Regenerate Quiz
+          </button>
+          <button
+            type="button"
+            class="button-primary"
+            data-preview-quiz-action="submit"
+            ${
+              state.isSubmittingAttempt || submittedPreviewAttempt || !hasAnsweredEveryQuestion()
+                ? "disabled"
+                : ""
+            }
+          >
+            ${state.isSubmittingAttempt ? "Submitting..." : submittedPreviewAttempt ? "Submitted" : "Submit Quiz"}
+          </button>
+        </div>
+        <div class="quiz-list">
+          ${state.currentQuizQuestions
+            .map((question, index) => {
+              const optionMarkup = Object.entries(question.options)
+                .map(([label, value]) => {
+                  const isChecked = state.selectedAnswersByQuestionId[question.id] === label
+                  const result = submittedPreviewResults.get(question.id)
+                  const resultClass = result
+                    ? label === result.correct_answer
+                      ? "is-correct-option"
+                      : isChecked
+                        ? "is-incorrect-option"
+                        : ""
+                    : ""
+                  return `
+                    <label class="quiz-option quiz-option-choice ${
+                      isChecked ? "is-selected" : ""
+                    } ${resultClass}">
+                      <input
+                        type="radio"
+                        name="preview-quiz-question-${question.id}"
+                        value="${label}"
+                        data-preview-question-id="${question.id}"
+                        ${isChecked ? "checked" : ""}
+                        ${submittedPreviewAttempt || state.isSubmittingAttempt ? "disabled" : ""}
+                      />
+                      <span class="option-label">${label}</span>
+                      <span class="option-copy">${value}</span>
+                    </label>
+                  `
+                })
+                .join("")
+
+              const result = submittedPreviewResults.get(question.id)
+              const resultMarkup = result
+                ? `
+                  <div class="answer-line">
+                    <span class="answer-line-header">Correct Answer</span>
+                    <span class="answer-badge">${result.correct_answer}</span>
+                    <span class="result-badge ${result.is_correct ? "is-correct" : "is-incorrect"}">
+                      ${result.is_correct ? "Correct" : "Review"}
+                    </span>
+                  </div>
+                  <div class="explanation-line">
+                    <strong>Explanation</strong>
+                    <p class="explanation-copy">${result.explanation}</p>
+                  </div>
+                `
+                : ""
+
+              return `
+                <article class="quiz-question">
+                  <span class="quiz-question-index">Question ${index + 1}</span>
+                  <h3>${question.question}</h3>
+                  <div class="quiz-options">${optionMarkup}</div>
+                  ${resultMarkup}
+                </article>
+              `
+            })
+            .join("")}
+        </div>
+        ${
+          submittedPreviewAttempt
+            ? `
+              <div class="quiz-result-summary">
+                <span class="score-badge">${formatPercent(submittedPreviewAttempt.score)}</span>
+                <p class="question-note">
+                  ${submittedPreviewAttempt.correct_count}/${submittedPreviewAttempt.total_questions} answers correct.
+                </p>
+              </div>
+            `
+            : `
+              <p class="question-note">
+                ${getAnsweredQuestionCount()}/${state.currentQuizQuestions.length} answers selected.
+              </p>
+            `
+        }
+        ${
+          state.quizNotice
+            ? `<p class="question-note quiz-notice" role="status">${state.quizNotice}</p>`
+            : ""
+        }
+      </div>
+    `
+    : ""
 
   if (state.sessionsLoadState === "loading") {
     elements.previewPanel.innerHTML = `
@@ -401,24 +596,31 @@ const renderPreviewPanel = () => {
           id="generate-reading-quiz-button"
           type="button"
           class="button-primary"
-          ${state.quizState === "loading" ? "disabled" : ""}
+          ${isGeneratingSelectedQuiz ? "disabled" : ""}
         >
-          ${state.quizState === "loading" ? "Generating..." : "Generate Reading Quiz"}
+          ${isGeneratingSelectedQuiz ? "Generating..." : "Generate Reading Quiz"}
         </button>
       </div>
+      ${previewQuizMarkup}
     </div>
   `
 
-  const generateButton = document.getElementById("generate-reading-quiz-button")
-  if (generateButton) {
-    generateButton.addEventListener("click", () => {
-      void generateQuizForSelectedSession()
-    })
-  }
 }
 
 const renderQuizPanel = () => {
   const selectedSession = getSelectedSession()
+  const isPreviewHostingQuiz =
+    selectedSession &&
+    state.quizSessionId === selectedSession.sessionId &&
+    state.quizState === "generated" &&
+    state.currentQuizQuestions.length > 0
+
+  document.body.classList.toggle("is-preview-quiz-active", Boolean(isPreviewHostingQuiz))
+
+  if (isPreviewHostingQuiz) {
+    elements.quizPanel.innerHTML = ""
+    return
+  }
 
   if (state.sessionsLoadState === "loading") {
     elements.quizPanel.innerHTML = `
@@ -438,7 +640,7 @@ const renderQuizPanel = () => {
     return
   }
 
-  if (state.quizState === "loading") {
+  if (isGeneratingQuizForSession(selectedSession.sessionId)) {
     elements.quizPanel.innerHTML = `
       <div class="state-block">
         <div class="loading-inline">
@@ -459,6 +661,18 @@ const renderQuizPanel = () => {
             <span class="quiz-skeleton-line is-meta"></span>
           </div>
         </div>
+      </div>
+    `
+    return
+  }
+
+  restoreCachedQuizForSession(selectedSession.sessionId)
+  const isQuizOwnedBySelectedSession = state.quizSessionId === selectedSession.sessionId
+
+  if (!isQuizOwnedBySelectedSession && state.quizState !== "empty") {
+    elements.quizPanel.innerHTML = `
+      <div class="state-block state-empty">
+        <p class="state-copy">Select a transcript to generate quiz.</p>
       </div>
     `
     return
@@ -491,9 +705,7 @@ const renderQuizPanel = () => {
     return
   }
 
-  const submittedAttempt = state.currentQuizId
-    ? state.attemptResultsByQuizId.get(state.currentQuizId) ?? null
-    : null
+  const submittedAttempt = getCurrentSubmittedAttempt()
   const submittedResults = new Map(
     (submittedAttempt?.results ?? []).map((item) => [item.question_id, item]),
   )
@@ -503,8 +715,18 @@ const renderQuizPanel = () => {
       const optionMarkup = Object.entries(question.options)
         .map(([label, value]) => {
           const isChecked = state.selectedAnswersByQuestionId[question.id] === label
+          const result = submittedResults.get(question.id)
+          const resultClass = result
+            ? label === result.correct_answer
+              ? "is-correct-option"
+              : isChecked
+                ? "is-incorrect-option"
+                : ""
+            : ""
           return `
-            <label class="quiz-option quiz-option-choice ${isChecked ? "is-selected" : ""}">
+            <label class="quiz-option quiz-option-choice ${
+              isChecked ? "is-selected" : ""
+            } ${resultClass}">
               <input
                 type="radio"
                 name="quiz-question-${question.id}"
@@ -558,7 +780,9 @@ const renderQuizPanel = () => {
       </div>
     `
     : `
-      <p class="question-note">Select your answers and submit to see corrections and explanations.</p>
+      <p class="question-note">
+        ${getAnsweredQuestionCount()}/${state.currentQuizQuestions.length} answers selected.
+      </p>
     `
 
   elements.quizPanel.innerHTML = `
@@ -566,13 +790,18 @@ const renderQuizPanel = () => {
       ${questionMarkup}
     </div>
     ${scoreSummaryMarkup}
+    ${state.quizNotice ? `<p class="question-note quiz-notice" role="status">${state.quizNotice}</p>` : ""}
     <div class="quiz-footer-actions">
       <button id="regenerate-quiz-button" type="button" class="button-ghost">Regenerate Quiz</button>
       <button
         id="submit-quiz-button"
         type="button"
         class="button-primary"
-        ${state.isSubmittingAttempt ? "disabled" : ""}
+        ${
+          state.isSubmittingAttempt || submittedAttempt || !hasAnsweredEveryQuestion()
+            ? "disabled"
+            : ""
+        }
       >
         ${state.isSubmittingAttempt ? "Submitting..." : submittedAttempt ? "Submitted" : "Submit Quiz"}
       </button>
@@ -583,23 +812,27 @@ const renderQuizPanel = () => {
     input.addEventListener("change", (event) => {
       const target = event.currentTarget
       const questionId = Number(target.dataset.questionId)
+      state.quizNotice = ""
       state.selectedAnswersByQuestionId = {
         ...state.selectedAnswersByQuestionId,
         [questionId]: target.value,
       }
+      renderPreviewPanel()
       renderQuizPanel()
     })
   }
 
   const regenerateButton = document.getElementById("regenerate-quiz-button")
   if (regenerateButton) {
-    regenerateButton.addEventListener("click", () => {
+    regenerateButton.addEventListener("click", (event) => {
+      event.preventDefault()
       void generateQuizForSelectedSession()
     })
   }
   const submitButton = document.getElementById("submit-quiz-button")
   if (submitButton && !submittedAttempt) {
-    submitButton.addEventListener("click", () => {
+    submitButton.addEventListener("click", (event) => {
+      event.preventDefault()
       void submitCurrentQuizAttempt()
     })
   }
@@ -612,10 +845,12 @@ const renderAll = () => {
   renderQuizPanel()
 }
 
-const loadProfileData = async () => {
-  state.profileLoadState = "loading"
-  state.profileError = ""
-  renderProfile()
+const loadProfileData = async ({ silent = false } = {}) => {
+  if (!silent) {
+    state.profileLoadState = "loading"
+    state.profileError = ""
+    renderProfile()
+  }
 
   try {
     const response = await apiFetch("/api/v1/profile")
@@ -626,6 +861,10 @@ const loadProfileData = async () => {
     state.profile = await response.json()
     state.profileLoadState = "ready"
   } catch (error) {
+    if (silent) {
+      return
+    }
+
     state.profileLoadState = "error"
     state.profileError =
       error instanceof Error ? error.message : "Could not load profile information."
@@ -646,7 +885,16 @@ const loadSessionsData = async () => {
     }
 
     const payload = await response.json()
-    state.sessions = payload.map(normalizeSessionSummary)
+    state.sessions = payload.map((item) => {
+      const summary = normalizeSessionSummary(item)
+      const cachedDetail = state.sessionDetailsById.get(summary.sessionId)
+      const cachedQuiz = state.quizzesBySessionId.get(summary.sessionId)
+      return {
+        ...summary,
+        ...(cachedDetail ?? {}),
+        quizStatus: cachedQuiz ? "Quiz Generated" : summary.quizStatus,
+      }
+    })
     state.sessionsLoadState = state.sessions.length > 0 ? "ready" : "empty"
   } catch (error) {
     state.sessionsLoadState = "error"
@@ -675,7 +923,9 @@ const loadSessionDetail = async (sessionId, { force = false } = {}) => {
 
 const loadExistingQuizForSession = async (sessionId, { force = false } = {}) => {
   if (!force && state.quizzesBySessionId.has(sessionId)) {
-    applyQuizToState(state.quizzesBySessionId.get(sessionId))
+    if (state.selectedSessionId === sessionId) {
+      applyQuizToState(state.quizzesBySessionId.get(sessionId))
+    }
     return
   }
 
@@ -685,8 +935,14 @@ const loadExistingQuizForSession = async (sessionId, { force = false } = {}) => 
   }
 
   const quizzes = await response.json()
+  if (state.selectedSessionId !== sessionId) {
+    return
+  }
+
   if (!Array.isArray(quizzes) || quizzes.length === 0) {
-    clearCurrentQuizState()
+    if (state.quizSessionId === sessionId) {
+      clearCurrentQuizState()
+    }
     return
   }
 
@@ -696,7 +952,7 @@ const loadExistingQuizForSession = async (sessionId, { force = false } = {}) => 
 }
 
 const refreshProfileSummary = async () => {
-  await loadProfileData()
+  await loadProfileData({ silent: true })
 }
 
 const loadSelectedSessionDetail = async (sessionId, { force = false } = {}) => {
@@ -717,28 +973,54 @@ const loadSelectedSessionDetail = async (sessionId, { force = false } = {}) => {
 }
 
 const handleSelectSession = async (sessionId, { generateAfterSelect = false } = {}) => {
+  const selectionRequestId = state.activeSelectionRequestId + 1
+  state.activeSelectionRequestId = selectionRequestId
   state.selectedSessionId = sessionId
-  clearCurrentQuizState()
+  if (state.quizSessionId !== sessionId) {
+    clearCurrentQuizState()
+  }
+  if (isGeneratingQuizForSession(sessionId)) {
+    state.quizSessionId = sessionId
+    state.quizState = "loading"
+    state.quizError = ""
+  }
   state.previewState = "loading"
   state.previewError = ""
   renderAll()
 
   try {
     await loadSessionDetail(sessionId)
+    if (
+      selectionRequestId !== state.activeSelectionRequestId ||
+      state.selectedSessionId !== sessionId
+    ) {
+      return
+    }
+
     state.previewState = "ready"
 
     const selectedSession = getSelectedSession()
-    if (selectedSession?.quizStatus === "Quiz Generated") {
+    if (isGeneratingQuizForSession(sessionId)) {
+      state.quizSessionId = sessionId
+      state.quizState = "loading"
+    } else if (selectedSession?.quizStatus === "Quiz Generated") {
       try {
+        state.quizSessionId = sessionId
         state.quizState = "loading"
         renderQuizPanel()
         await loadExistingQuizForSession(sessionId)
       } catch (error) {
-        state.quizState = "error"
-        state.quizError =
-          error instanceof Error ? error.message : "Could not load the generated quiz."
+        if (
+          selectionRequestId === state.activeSelectionRequestId &&
+          state.selectedSessionId === sessionId
+        ) {
+          state.quizSessionId = sessionId
+          state.quizState = "error"
+          state.quizError =
+            error instanceof Error ? error.message : "Could not load the generated quiz."
+        }
       }
-    } else {
+    } else if (state.quizSessionId !== sessionId) {
       clearCurrentQuizState()
     }
 
@@ -747,35 +1029,55 @@ const handleSelectSession = async (sessionId, { generateAfterSelect = false } = 
       return
     }
   } catch (error) {
+    if (
+      selectionRequestId !== state.activeSelectionRequestId ||
+      state.selectedSessionId !== sessionId
+    ) {
+      return
+    }
+
     state.previewState = "error"
     state.previewError =
       error instanceof Error ? error.message : "Could not load transcript detail."
-    clearCurrentQuizState()
+    if (state.quizSessionId !== sessionId) {
+      clearCurrentQuizState()
+    }
   }
 
-  renderAll()
+  if (selectionRequestId === state.activeSelectionRequestId) {
+    renderAll()
+  }
 }
 
 const generateQuizForSelectedSession = async () => {
   const selectedSession = getSelectedSession()
-  if (!selectedSession || state.quizState === "loading") {
+  if (!selectedSession || isGeneratingQuizForSession(selectedSession.sessionId)) {
     return
   }
 
-  if (!selectedSession.rawText) {
-    await loadSelectedSessionDetail(selectedSession.sessionId)
-  }
+  const sessionId = selectedSession.sessionId
 
+  state.generatingSessionIds.add(sessionId)
   state.quizState = "loading"
   state.quizError = ""
+  state.quizSessionId = sessionId
   state.currentQuizId = null
   state.currentQuizQuestions = []
   state.selectedAnswersByQuestionId = {}
+  state.isSubmittingAttempt = false
+  renderRows()
   renderPreviewPanel()
   renderQuizPanel()
 
   try {
-    const response = await apiFetch(`/api/v1/sessions/${selectedSession.sessionId}/generate-quiz`, {
+    if (!selectedSession.rawText) {
+      await loadSelectedSessionDetail(sessionId)
+      if (state.selectedSessionId !== sessionId) {
+        return
+      }
+    }
+
+    const response = await apiFetch(`/api/v1/sessions/${sessionId}/generate-quiz`, {
       method: "POST",
     })
     if (!response.ok) {
@@ -783,18 +1085,28 @@ const generateQuizForSelectedSession = async () => {
     }
 
     const quiz = normalizeQuizResponse(await response.json())
-    state.quizzesBySessionId.set(selectedSession.sessionId, quiz)
+    state.quizzesBySessionId.set(sessionId, quiz)
     state.attemptResultsByQuizId.delete(quiz.quizId)
-    applyQuizToState(quiz)
-    updateSession({
-      sessionId: selectedSession.sessionId,
-      quizStatus: "Quiz Generated",
-    })
-    await refreshProfileSummary()
+    syncSessionQuizStatus(sessionId, "Quiz Generated")
+    if (state.selectedSessionId === sessionId) {
+      state.generatingSessionIds.delete(sessionId)
+      applyQuizToState(quiz)
+      renderAll()
+
+      void loadExistingQuizForSession(sessionId, { force: true }).catch(() => {
+        return
+      })
+    }
+    void refreshProfileStatsInBackground()
   } catch (error) {
-    state.quizState = "error"
-    state.quizError =
-      error instanceof Error ? error.message : "Could not generate a reading quiz right now."
+    if (state.selectedSessionId === sessionId && !state.quizzesBySessionId.has(sessionId)) {
+      state.quizSessionId = sessionId
+      state.quizState = "error"
+      state.quizError =
+        error instanceof Error ? error.message : "Could not generate a reading quiz right now."
+    }
+  } finally {
+    state.generatingSessionIds.delete(sessionId)
   }
 
   renderAll()
@@ -805,7 +1117,16 @@ const submitCurrentQuizAttempt = async () => {
     return
   }
 
+  if (!hasAnsweredEveryQuestion()) {
+    state.quizNotice = `Choose an answer for all ${state.currentQuizQuestions.length} questions before submitting.`
+    renderPreviewPanel()
+    renderQuizPanel()
+    return
+  }
+
+  state.quizNotice = ""
   state.isSubmittingAttempt = true
+  renderPreviewPanel()
   renderQuizPanel()
 
   const answers = state.currentQuizQuestions
@@ -846,6 +1167,54 @@ const submitCurrentQuizAttempt = async () => {
 }
 
 const bindEvents = () => {
+  elements.searchInput.form?.addEventListener("submit", (event) => {
+    event.preventDefault()
+  })
+
+  elements.previewPanel.addEventListener("click", (event) => {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      return
+    }
+
+    const previewQuizAction = target.closest("[data-preview-quiz-action]")
+    if (previewQuizAction) {
+      event.preventDefault()
+      const action = previewQuizAction.dataset.previewQuizAction
+      if (action === "regenerate") {
+        void generateQuizForSelectedSession()
+      }
+      if (action === "submit") {
+        void submitCurrentQuizAttempt()
+      }
+      return
+    }
+
+    const generateButton = target.closest("#generate-reading-quiz-button")
+    if (!generateButton) {
+      return
+    }
+
+    event.preventDefault()
+    void generateQuizForSelectedSession()
+  })
+
+  elements.previewPanel.addEventListener("change", (event) => {
+    const target = event.target
+    if (!(target instanceof HTMLInputElement) || !target.dataset.previewQuestionId) {
+      return
+    }
+
+    const questionId = Number(target.dataset.previewQuestionId)
+    state.quizNotice = ""
+    state.selectedAnswersByQuestionId = {
+      ...state.selectedAnswersByQuestionId,
+      [questionId]: target.value,
+    }
+    renderPreviewPanel()
+    renderQuizPanel()
+  })
+
   elements.searchInput.addEventListener("input", (event) => {
     state.searchTerm = event.target.value
     renderRows()

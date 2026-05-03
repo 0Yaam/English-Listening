@@ -386,7 +386,7 @@ a {
 
 .video-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -411,11 +411,20 @@ a {
   letter-spacing: -0.02em;
 }
 
-.video-panel-actions {
+.video-panel-actions,
+.video-shell-controls {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+}
+
+.video-shell-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  justify-content: flex-end;
 }
 
 .video-shell {
@@ -500,6 +509,8 @@ kbd {
   border-bottom: 0;
   border-radius: 0;
   background: transparent;
+  justify-items: center;
+  text-align: center;
 }
 
 .prompt-label {
@@ -517,6 +528,7 @@ kbd {
   line-height: 1.95;
   letter-spacing: -0.015em;
   color: var(--color-text);
+  text-align: center;
 }
 
 .blanked-text .inline-blank {
@@ -564,7 +576,7 @@ kbd {
 
 .practice-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   gap: var(--space-md);
   flex-wrap: wrap;
@@ -574,8 +586,17 @@ kbd {
 .practice-action-buttons {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+}
+
+.practice-shortcut-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  text-align: center;
 }
 
 .feedback-panel {
@@ -888,8 +909,15 @@ button:disabled {
     align-items: stretch;
   }
 
-  .panel-heading {
+  .panel-heading,
+  .video-shell-controls {
     flex-direction: column;
+  }
+
+  .video-shell-controls {
+    left: 12px;
+    right: 12px;
+    align-items: stretch;
   }
 
   .study-topbar-inner {
