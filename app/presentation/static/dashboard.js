@@ -69,6 +69,8 @@ const state = {
   vocabularyState: "empty",
   vocabularyError: "",
   vocabularyBySessionId: new Map(),
+  maskedVocabularySessionIds: new Set(),
+  isVocabularySourceCollapsed: false,
   wordSearchTerm: "",
   difficultyFilter: "all",
   savedOnly: false,
@@ -262,6 +264,24 @@ const getDifficultyBadgeClass = (difficulty) => {
   return "is-blue"
 }
 
+const buildEyeIcon = (isMasked) => {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+      ${isMasked ? `<path class="icon-slash" d="M4 4l16 16"></path>` : ""}
+    </svg>
+  `
+}
+
+const buildStarIcon = (isSaved) => {
+  return `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="${isSaved ? "is-filled" : ""}">
+      <path d="m12 3.8 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6L7.1 19l.9-5.5-4-3.9 5.5-.8L12 3.8Z"></path>
+    </svg>
+  `
+}
+
 const updateUrl = ({ replaceHistory = false } = {}) => {
   const nextUrl = new URL(window.location.href)
   nextUrl.searchParams.set("view", state.activeView)
@@ -280,7 +300,10 @@ const setActiveView = (view, { replaceHistory = false } = {}) => {
   state.activeView = view
   elements.viewTitle.textContent = VIEW_TITLES[view]
   elements.contextSummary.textContent = VIEW_CONTEXT[view]
-  elements.main.classList.toggle("is-compact-workspace", view === "sessions")
+  elements.main.classList.toggle(
+    "is-compact-workspace",
+    view === "sessions" || view === "vocabulary",
+  )
 
   for (const navItem of elements.nav.querySelectorAll("[data-view]")) {
     navItem.classList.toggle("is-active", navItem.dataset.view === view)
@@ -395,10 +418,15 @@ const buildBars = ({ items, valueKey, labelKey, type = "", maxValue = 100 }) => 
   `
 }
 
-const buildSessionRail = ({ title = "Transcript Source", summary = "" } = {}) => {
+const buildSessionRail = ({
+  title = "Transcript Source",
+  summary = "",
+  collapsible = false,
+  collapsed = false,
+} = {}) => {
   if (state.sessionsState === "loading") {
     return `
-      <aside class="session-rail">
+      <aside class="session-rail ${collapsed ? "is-collapsed" : ""}">
         <div class="card-header">
           <div>
             <h3 class="card-title">${escapeHtml(title)}</h3>
@@ -412,7 +440,7 @@ const buildSessionRail = ({ title = "Transcript Source", summary = "" } = {}) =>
 
   if (state.sessionsState === "error") {
     return `
-      <aside class="session-rail">
+      <aside class="session-rail ${collapsed ? "is-collapsed" : ""}">
         <div class="card-header">
           <div>
             <h3 class="card-title">${escapeHtml(title)}</h3>
@@ -426,14 +454,29 @@ const buildSessionRail = ({ title = "Transcript Source", summary = "" } = {}) =>
 
   const sessions = getFilteredSessions()
   return `
-    <aside class="session-rail">
+    <aside class="session-rail ${collapsed ? "is-collapsed" : ""}">
       <div class="card-header">
-        <div>
+        <div class="session-rail-heading">
           <h3 class="card-title">${escapeHtml(title)}</h3>
           <p class="panel-subtext">${escapeHtml(summary || `${sessions.length} sessions available.`)}</p>
         </div>
+        ${
+          collapsible
+            ? `
+              <button
+                type="button"
+                class="rail-toggle-button"
+                data-toggle-vocab-source
+                aria-label="${collapsed ? "Expand vocabulary source" : "Collapse vocabulary source"}"
+                title="${collapsed ? "Expand" : "Collapse"}"
+              >
+                ${collapsed ? ">>" : "<<"}
+              </button>
+            `
+            : ""
+        }
       </div>
-      <div class="session-list" aria-live="polite">
+      <div class="session-list" aria-live="polite" ${collapsed ? "hidden" : ""}>
         ${
           sessions.length === 0
             ? buildStateMarkup("No sessions match the current filters.")
@@ -1037,20 +1080,6 @@ const getFilteredVocabulary = () => {
   })
 }
 
-const buildVocabularySummary = (items) => {
-  const savedCount = items.filter((item) => item.isSaved).length
-  const hardCount = items.filter((item) => item.difficulty === "hard").length
-  const mediumCount = items.filter((item) => item.difficulty === "medium").length
-  return `
-    <div class="summary-grid">
-      <div class="summary-tile"><span>Total</span><strong>${items.length}</strong></div>
-      <div class="summary-tile"><span>Saved</span><strong>${savedCount}</strong></div>
-      <div class="summary-tile"><span>Hard</span><strong>${hardCount}</strong></div>
-      <div class="summary-tile"><span>Medium</span><strong>${mediumCount}</strong></div>
-    </div>
-  `
-}
-
 const buildWordPanel = () => {
   const selectedSession = getSelectedSession()
   if (!selectedSession) {
@@ -1063,6 +1092,7 @@ const buildWordPanel = () => {
 
   const allItems = getVocabularyForSelectedSession()
   const filteredItems = getFilteredVocabulary()
+  const isMasked = state.maskedVocabularySessionIds.has(selectedSession.sessionId)
   const content =
     state.vocabularyState === "loading"
       ? buildLoadingMarkup("Extracting vocabulary from transcript context.")
@@ -1070,10 +1100,9 @@ const buildWordPanel = () => {
         ? buildStateMarkup(state.vocabularyError || "Could not load vocabulary.", { error: true })
         : allItems.length === 0
           ? buildStateMarkup("No vocabulary candidates were found for this transcript.")
-          : filteredItems.length === 0
-            ? `${buildVocabularySummary(allItems)}${buildStateMarkup("No words match the current filters.")}`
+        : filteredItems.length === 0
+            ? buildStateMarkup("No words match the current filters.")
             : `
-              ${buildVocabularySummary(allItems)}
               <div class="word-grid">
                 ${filteredItems
                   .map((item) => {
@@ -1089,11 +1118,13 @@ const buildWordPanel = () => {
                           </div>
                           <button
                             type="button"
-                            class="${item.isSaved ? "button-text" : "button-ghost"}"
+                            class="icon-button ${item.isSaved ? "is-active" : ""}"
                             data-save-term="${encodeURIComponent(item.term)}"
+                            aria-label="${item.isSaved ? "Saved word" : `Save ${escapeHtml(item.term)}`}"
+                            title="${item.isSaved ? "Saved" : "Save"}"
                             ${item.isSaved ? "disabled" : ""}
                           >
-                            ${item.isSaved ? "Saved" : "Save"}
+                            ${buildStarIcon(item.isSaved)}
                           </button>
                         </div>
                         <p class="word-definition">${escapeHtml(item.definition)}</p>
@@ -1113,7 +1144,18 @@ const buildWordPanel = () => {
           <h3 class="card-title">${escapeHtml(selectedSession.videoTitle)}</h3>
           <p class="panel-subtext">${escapeHtml(String(allItems.length))} extracted words.</p>
         </div>
-        <button type="button" class="button-ghost" data-refresh-vocabulary>Refresh</button>
+        <div class="inline-actions">
+          <button
+            type="button"
+            class="icon-button ${isMasked ? "is-active" : ""}"
+            data-toggle-vocab-mask
+            aria-label="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
+            title="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
+          >
+            ${buildEyeIcon(isMasked)}
+          </button>
+          <button type="button" class="button-ghost" data-refresh-vocabulary>Refresh</button>
+        </div>
       </div>
       <div class="word-toolbar">
         <label class="control-field">
@@ -1134,7 +1176,7 @@ const buildWordPanel = () => {
           <span>Saved only</span>
         </label>
       </div>
-      <div class="word-list" aria-live="polite">${content}</div>
+      <div class="word-list ${isMasked ? "is-masked" : ""}" aria-live="polite">${content}</div>
     </section>
   `
 }
@@ -1235,8 +1277,13 @@ const renderVocabularyView = () => {
   }
 
   panel.innerHTML = `
-    <div class="vocab-workspace">
-      ${buildSessionRail({ title: "Vocabulary Source", summary: "Pick the transcript that owns the word bank." })}
+    <div class="vocab-workspace ${state.isVocabularySourceCollapsed ? "is-source-collapsed" : ""}">
+      ${buildSessionRail({
+        title: "Vocabulary Source",
+        summary: "Pick the transcript that owns the word bank.",
+        collapsible: true,
+        collapsed: state.isVocabularySourceCollapsed,
+      })}
       ${buildWordPanel()}
       ${buildMiniQuizPanel()}
     </div>
@@ -1975,6 +2022,24 @@ const bindEvents = () => {
         return
       }
 
+      if (target.closest("[data-toggle-vocab-source]")) {
+        event.preventDefault()
+        state.isVocabularySourceCollapsed = !state.isVocabularySourceCollapsed
+        renderVocabularyView()
+        return
+      }
+
+      if (target.closest("[data-toggle-vocab-mask]") && state.selectedSessionId) {
+        event.preventDefault()
+        if (state.maskedVocabularySessionIds.has(state.selectedSessionId)) {
+          state.maskedVocabularySessionIds.delete(state.selectedSessionId)
+        } else {
+          state.maskedVocabularySessionIds.add(state.selectedSessionId)
+        }
+        renderVocabularyView()
+        return
+      }
+
       const saveButton = target.closest("[data-save-term]")
       if (saveButton) {
         event.preventDefault()
@@ -1985,6 +2050,7 @@ const bindEvents = () => {
       const startVocabQuizButton = target.closest("[data-start-vocab-quiz]")
       if (startVocabQuizButton && state.selectedSessionId) {
         event.preventDefault()
+        state.maskedVocabularySessionIds.add(state.selectedSessionId)
         void loadVocabQuiz(state.selectedSessionId)
       }
     })
