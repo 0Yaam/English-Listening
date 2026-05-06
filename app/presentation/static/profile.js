@@ -1859,6 +1859,11 @@ const init = async () => {
   renderAll()
 
   await Promise.all([loadProfileData(), loadSessionsData()])
+  const requestedSessionId = Number(new URLSearchParams(window.location.search).get("session_id"))
+  if (!Number.isNaN(requestedSessionId) && state.sessions.some((session) => session.sessionId === requestedSessionId)) {
+    await handleSelectSession(requestedSessionId)
+    return
+  }
   renderAll()
 }
 

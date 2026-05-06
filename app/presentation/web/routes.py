@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter
+from fastapi import Request
 from fastapi.responses import FileResponse
 from fastapi.responses import RedirectResponse
 
@@ -16,20 +17,29 @@ def get_index_page() -> FileResponse:
     return FileResponse(_STATIC_DIR / "index.html")
 
 
+def _dashboard_redirect_url(request: Request, view: str) -> str:
+    target = f"/dashboard?view={view}"
+    if request.url.query:
+        target = f"{target}&{request.url.query}"
+    return target
+
+
 @router.get("/profile")
-def get_profile_page() -> FileResponse:
+def get_profile_page(request: Request) -> RedirectResponse:
+    return RedirectResponse(url=_dashboard_redirect_url(request, "sessions"))
+
+
+@router.get("/dashboard")
+def get_dashboard_page() -> FileResponse:
     return FileResponse(
-        _STATIC_DIR / "profile.html",
+        _STATIC_DIR / "dashboard.html",
         headers={"Cache-Control": "no-store"},
     )
 
 
 @router.get("/vocabulary")
-def get_vocabulary_page() -> FileResponse:
-    return FileResponse(
-        _STATIC_DIR / "vocabulary.html",
-        headers={"Cache-Control": "no-store"},
-    )
+def get_vocabulary_page(request: Request) -> RedirectResponse:
+    return RedirectResponse(url=_dashboard_redirect_url(request, "vocabulary"))
 
 
 @router.get("/login")

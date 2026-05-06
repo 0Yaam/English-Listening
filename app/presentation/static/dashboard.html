@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learning Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css?v=20260506a" />
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <aside class="dashboard-sidebar" aria-label="Main navigation">
+        <div class="sidebar-brand">
+          <div id="dashboard-avatar" class="dashboard-avatar" aria-hidden="true">--</div>
+          <div>
+            <h1>Shadowing</h1>
+            <p id="dashboard-userline">Loading learner</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button type="button" class="nav-item is-active" data-view="dashboard">Dashboard</button>
+          <button type="button" class="nav-item" data-view="sessions">Sessions</button>
+          <button type="button" class="nav-item" data-view="quiz-history">Quiz History</button>
+          <button type="button" class="nav-item" data-view="vocabulary">Vocabulary</button>
+          <button type="button" class="nav-item" data-view="settings">Settings</button>
+        </nav>
+
+        <div class="sidebar-actions">
+          <a href="/" class="button-ghost">New Practice</a>
+          <button id="dashboard-sign-out" type="button" class="button-text">Sign out</button>
+        </div>
+      </aside>
+
+      <main class="dashboard-main">
+        <header class="dashboard-topbar">
+          <div class="topbar-copy">
+            <p id="context-summary" class="section-label">Learning workspace</p>
+            <h2 id="view-title">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="button-ghost" data-view-link="vocabulary">Vocabulary</button>
+            <button type="button" class="button-primary" data-view-link="sessions">Study Session</button>
+          </div>
+        </header>
+
+        <section id="dashboard-view" class="view-panel is-active" data-panel="dashboard" aria-labelledby="view-title"></section>
+        <section id="sessions-view" class="view-panel" data-panel="sessions" aria-labelledby="view-title" hidden></section>
+        <section id="quiz-history-view" class="view-panel" data-panel="quiz-history" aria-labelledby="view-title" hidden></section>
+        <section id="vocabulary-view" class="view-panel" data-panel="vocabulary" aria-labelledby="view-title" hidden></section>
+        <section id="settings-view" class="view-panel" data-panel="settings" aria-labelledby="view-title" hidden></section>
+      </main>
+    </div>
+
+    <script type="module" src="/static/dashboard.js?v=20260506a"></script>
+  </body>
+</html>

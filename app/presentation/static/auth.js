@@ -17,7 +17,7 @@ const redirectToLogin = () => {
 }
 
 const redirectToProfile = () => {
-  window.location.href = "/profile"
+  window.location.href = "/dashboard"
 }
 
 const buildApiUrl = (path) => {

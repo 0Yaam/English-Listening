@@ -121,13 +121,22 @@ def test_profile_page_is_served() -> None:
     assert "Learning Dashboard" in response.text
 
 
+def test_dashboard_page_is_served() -> None:
+    client = TestClient(app)
+
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "Learning Dashboard" in response.text
+
+
 def test_vocabulary_page_is_served() -> None:
     client = TestClient(app)
 
     response = client.get("/vocabulary")
 
     assert response.status_code == 200
-    assert "Vocabulary Lab" in response.text
+    assert "Learning Dashboard" in response.text
 
 
 def test_login_page_is_served() -> None:
