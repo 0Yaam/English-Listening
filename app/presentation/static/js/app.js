@@ -8,6 +8,142 @@ const AppState = Object.freeze({
 })
 
 const ACCESS_TOKEN_STORAGE_KEY = "shadowing_access_token"
+const LANGUAGE_STORAGE_KEY = "dashboard_language"
+
+const TEXT = {
+  en: {
+    "topbar.session": "Practice session",
+    "topbar.dashboard": "Dashboard",
+    "topbar.dashboardAria": "Open dashboard",
+    "entry.title": "Start practice",
+    "entry.copy": "Paste a YouTube link to start a focused shadowing session.",
+    "entry.videoLabel": "Paste a YouTube link",
+    "entry.start": "Start practice",
+    "entry.ready": "Ready when you are.",
+    "entry.helper": "Press Enter to start. Shortcuts appear after the workspace loads.",
+    "workspace.title": "Shadowing practice workspace",
+    "workspace.source": "Listening Source",
+    "workspace.ready": "Ready",
+    "workspace.loadingVideo": "Loading video...",
+    "workspace.exercise": "Fill exercise",
+    "workspace.empty": "No exercise loaded yet. Paste a YouTube link and start a session to begin.",
+    "workspace.prompt": "Current sentence",
+    "workspace.shortcut": "Ctrl starts or replays the current segment. Enter checks your answer.",
+    "action.checkAnswer": "Check answer",
+    "action.nextSegment": "Next segment",
+    "action.practiceAnother": "Practice another video",
+    "results.summary": "Summary",
+    "results.title": "Session Review",
+    "results.totalSegments": "Total segments",
+    "results.averageAccuracy": "Average accuracy",
+    "results.correct": "Correct",
+    "results.needsReview": "Needs review",
+    "status.pasteLink": "Paste a YouTube link to begin.",
+    "status.invalidUrl": "Please enter a valid YouTube URL.",
+    "status.starting": "Starting...",
+    "status.loadingTranscript": "Loading transcript and building the exercise...",
+    "status.loadingTranscriptMode": "Loading transcript",
+    "status.loadingVideoMode": "Loading video",
+    "status.loadingPlayer": "Loading the video player for this practice session...",
+    "status.exerciseReady": "Exercise ready. {count} segments loaded. Press \"Start practice\" to begin.",
+    "status.createError": "Could not create the exercise.",
+    "status.fillBlank": "Fill every blank before checking this sentence.",
+    "status.scoring": "Scoring your answer...",
+    "status.correctNext": "Correct. Moving to the next segment...",
+    "status.review": "Needs review. Edit the highlighted blanks and press Enter again.",
+    "status.playing": "Playing segment {current}/{total}.",
+    "status.paused": "The video is paused. Fill the missing words and submit the sentence.",
+    "status.preparing": "Preparing the next segment...",
+    "status.createFirst": "Create an exercise first.",
+    "status.finishCurrent": "Finish the current sentence before continuing.",
+    "status.replaying": "Replaying the current segment.",
+    "status.completed": "Practice session completed. Review your results or start another video.",
+    "button.practiceAgain": "Practice again",
+    "button.listening": "Listening...",
+    "button.waiting": "Waiting for input",
+    "button.checking": "Checking...",
+    "button.checkAgain": "Check again",
+    "mode.waiting": "Waiting",
+    "mode.ready": "Ready",
+    "mode.listening": "Listening",
+    "mode.input": "Type the missing words",
+    "mode.checking": "Checking",
+    "mode.finished": "Finished",
+    "mode.correct": "Correct",
+    "mode.review": "Needs review",
+    "progress.segment": "Segment {current} / {total}",
+    "prompt.current": "Current sentence",
+    "blank.label": "Blank {index}",
+    "blank.answer": "Answer input",
+    "blank.placeholder": "Type what you heard",
+  },
+  vi: {
+    "topbar.session": "Buổi luyện tập",
+    "topbar.dashboard": "Dashboard",
+    "topbar.dashboardAria": "Mở dashboard",
+    "entry.title": "Bắt đầu luyện tập",
+    "entry.copy": "Dán link YouTube để bắt đầu một buổi shadowing tập trung.",
+    "entry.videoLabel": "Dán link YouTube",
+    "entry.start": "Bắt đầu",
+    "entry.ready": "Sẵn sàng khi bạn sẵn sàng.",
+    "entry.helper": "Nhấn Enter để bắt đầu. Phím tắt sẽ xuất hiện sau khi workspace tải xong.",
+    "workspace.title": "Không gian luyện shadowing",
+    "workspace.source": "Nguồn nghe",
+    "workspace.ready": "Sẵn sàng",
+    "workspace.loadingVideo": "Đang tải video...",
+    "workspace.exercise": "Bài điền từ",
+    "workspace.empty": "Chưa có bài tập. Dán link YouTube rồi bắt đầu một buổi học.",
+    "workspace.prompt": "Câu hiện tại",
+    "workspace.shortcut": "Ctrl bắt đầu hoặc phát lại đoạn hiện tại. Enter kiểm tra câu trả lời.",
+    "action.checkAnswer": "Kiểm tra",
+    "action.nextSegment": "Câu tiếp theo",
+    "action.practiceAnother": "Luyện video khác",
+    "results.summary": "Tổng kết",
+    "results.title": "Xem lại buổi học",
+    "results.totalSegments": "Tổng đoạn",
+    "results.averageAccuracy": "Độ chính xác TB",
+    "results.correct": "Đúng",
+    "results.needsReview": "Cần xem lại",
+    "status.pasteLink": "Dán link YouTube để bắt đầu.",
+    "status.invalidUrl": "Vui lòng nhập đúng URL YouTube.",
+    "status.starting": "Đang bắt đầu...",
+    "status.loadingTranscript": "Đang tải transcript và tạo bài tập...",
+    "status.loadingTranscriptMode": "Đang tải transcript",
+    "status.loadingVideoMode": "Đang tải video",
+    "status.loadingPlayer": "Đang tải trình phát video cho buổi luyện tập này...",
+    "status.exerciseReady": "Bài tập đã sẵn sàng. Đã tải {count} đoạn. Nhấn \"Bắt đầu\" để học.",
+    "status.createError": "Không tạo được bài tập.",
+    "status.fillBlank": "Hãy điền hết các ô trống trước khi kiểm tra câu này.",
+    "status.scoring": "Đang chấm câu trả lời...",
+    "status.correctNext": "Đúng rồi. Đang chuyển sang đoạn tiếp theo...",
+    "status.review": "Cần xem lại. Sửa các ô được đánh dấu rồi nhấn Enter lần nữa.",
+    "status.playing": "Đang phát đoạn {current}/{total}.",
+    "status.paused": "Video đã tạm dừng. Điền các từ bị thiếu rồi nộp câu trả lời.",
+    "status.preparing": "Đang chuẩn bị đoạn tiếp theo...",
+    "status.createFirst": "Hãy tạo bài tập trước.",
+    "status.finishCurrent": "Hoàn thành câu hiện tại trước khi tiếp tục.",
+    "status.replaying": "Đang phát lại đoạn hiện tại.",
+    "status.completed": "Buổi luyện tập đã hoàn thành. Xem kết quả hoặc bắt đầu video khác.",
+    "button.practiceAgain": "Luyện lại",
+    "button.listening": "Đang nghe...",
+    "button.waiting": "Đang chờ nhập",
+    "button.checking": "Đang kiểm tra...",
+    "button.checkAgain": "Kiểm tra lại",
+    "mode.waiting": "Đang chờ",
+    "mode.ready": "Sẵn sàng",
+    "mode.listening": "Đang nghe",
+    "mode.input": "Nhập các từ bị thiếu",
+    "mode.checking": "Đang kiểm tra",
+    "mode.finished": "Hoàn thành",
+    "mode.correct": "Đúng",
+    "mode.review": "Cần xem lại",
+    "progress.segment": "Đoạn {current} / {total}",
+    "prompt.current": "Câu hiện tại",
+    "blank.label": "Ô trống {index}",
+    "blank.answer": "Ô nhập câu trả lời",
+    "blank.placeholder": "Nhập phần bạn nghe được",
+  },
+}
 
 class YouTubePlayerController {
   static apiReadyPromise = null
@@ -124,16 +260,81 @@ class AppController {
     this.pendingAdvanceId = null
     this.currentBlankInputs = []
     this.modeLabelOverride = null
+    this.language = this.normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY))
   }
 
   async initialize() {
+    this.applyLanguage()
     this.bindEvents()
     await this.playerController.initialize()
     this.setState(AppState.IDLE)
-    this.renderStatus("Ready when you are.")
+    this.renderStatus(this.t("entry.ready"))
     this.renderDifficulty()
     this.renderWorkspaceMode()
     this.renderAccuracy()
+  }
+
+  normalizeLanguage(language) {
+    return language === "vi" ? "vi" : "en"
+  }
+
+  t(key, replacements = {}) {
+    const template = TEXT[this.language]?.[key] ?? TEXT.en[key] ?? key
+    return Object.entries(replacements).reduce((value, [name, replacement]) => {
+      return value.replaceAll(`{${name}}`, String(replacement))
+    }, template)
+  }
+
+  setLanguage(language) {
+    this.language = this.normalizeLanguage(language)
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, this.language)
+    this.applyLanguage()
+    this.renderWorkspaceMode()
+    this.renderDifficulty()
+    this.setState(this.state)
+    if (!this.session) {
+      this.renderStatus(this.t("entry.ready"))
+    }
+  }
+
+  applyLanguage() {
+    document.documentElement.lang = this.language === "vi" ? "vi" : "en"
+    const switchElement = this.elements.languageSwitch
+    if (switchElement) {
+      switchElement.dataset.language = this.language
+    }
+    for (const button of this.elements.languageButtons) {
+      const isActive = button.dataset.languageChoice === this.language
+      button.classList.toggle("is-active", isActive)
+      button.setAttribute("aria-pressed", String(isActive))
+    }
+
+    this.elements.topbarSessionLabel.textContent = this.t("topbar.session")
+    this.elements.profileButton.textContent = this.t("topbar.dashboard")
+    this.elements.profileButton.setAttribute("aria-label", this.t("topbar.dashboardAria"))
+    this.elements.profileButton.title = this.t("topbar.dashboard")
+    this.elements.entryTitle.textContent = this.t("entry.title")
+    this.elements.entryCopy.textContent = this.t("entry.copy")
+    this.elements.videoUrlLabel.textContent = this.t("entry.videoLabel")
+    this.elements.videoUrlInput.setAttribute("aria-label", this.t("entry.videoLabel"))
+    this.elements.generateLessonButton.textContent = this.t("entry.start")
+    this.elements.entryHelper.textContent = this.t("entry.helper")
+    this.elements.workspaceTitle.textContent = this.t("workspace.title")
+    this.elements.videoTitle.textContent = this.t("workspace.source")
+    this.elements.videoLoadingIndicator.textContent = this.t("workspace.loadingVideo")
+    this.elements.exerciseTitle.textContent = this.t("workspace.exercise")
+    this.elements.emptyState.textContent = this.t("workspace.empty")
+    this.elements.promptLabel.textContent = this.t("workspace.prompt")
+    this.elements.practiceShortcutNote.textContent = this.t("workspace.shortcut")
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
+    this.elements.nextSegmentButton.textContent = this.t("action.nextSegment")
+    this.elements.resultsSummaryLabel.textContent = this.t("results.summary")
+    this.elements.resultsTitle.textContent = this.t("results.title")
+    this.elements.totalSegmentsLabel.textContent = this.t("results.totalSegments")
+    this.elements.averageAccuracyLabel.textContent = this.t("results.averageAccuracy")
+    this.elements.correctCountLabel.textContent = this.t("results.correct")
+    this.elements.reviewCountLabel.textContent = this.t("results.needsReview")
+    this.elements.practiceAnotherButton.textContent = this.t("action.practiceAnother")
   }
 
   bindEvents() {
@@ -157,6 +358,12 @@ class AppController {
       this.resetToIdle()
     })
 
+    for (const button of this.elements.languageButtons) {
+      button.addEventListener("click", () => {
+        this.setLanguage(button.dataset.languageChoice)
+      })
+    }
+
     document.addEventListener("keydown", (event) => {
       this.handleGlobalKeydown(event)
     })
@@ -176,7 +383,7 @@ class AppController {
 
     if (!videoUrl) {
       this.elements.videoUrlInput.setAttribute("aria-invalid", "true")
-      this.renderStatus("Paste a YouTube link to begin.", "error")
+      this.renderStatus(this.t("status.pasteLink"), "error")
       return
     }
 
@@ -184,15 +391,15 @@ class AppController {
 
     if (!videoId) {
       this.elements.videoUrlInput.setAttribute("aria-invalid", "true")
-      this.renderStatus("Please enter a valid YouTube URL.", "error")
+      this.renderStatus(this.t("status.invalidUrl"), "error")
       return
     }
 
     this.elements.generateLessonButton.disabled = true
-    this.elements.generateLessonButton.textContent = "Starting..."
+    this.elements.generateLessonButton.textContent = this.t("status.starting")
     this.setState(AppState.IDLE)
-    this.setModeOverride("Loading transcript")
-    this.renderStatus("Loading transcript and building the exercise...")
+    this.setModeOverride(this.t("status.loadingTranscriptMode"))
+    this.renderStatus(this.t("status.loadingTranscript"))
     this.toggleSessionButtons(false)
 
     try {
@@ -213,9 +420,9 @@ class AppController {
       }
 
       this.showWorkspace()
-      this.showVideoLoading("Loading video...")
-      this.setModeOverride("Loading video")
-      this.renderStatus("Loading the video player for this practice session...")
+      this.showVideoLoading(this.t("workspace.loadingVideo"))
+      this.setModeOverride(this.t("status.loadingVideoMode"))
+      this.renderStatus(this.t("status.loadingPlayer"))
       await this.playerController.loadVideo(videoId, exercise.items[0].start, false)
       this.hideVideoLoading()
 
@@ -224,20 +431,20 @@ class AppController {
       this.toggleSessionButtons(true)
       this.setState(AppState.READY)
       this.renderStatus(
-        `Exercise ready. ${exercise.items.length} segments loaded. Press "Start practice" to begin.`,
+        this.t("status.exerciseReady", { count: exercise.items.length }),
         "success",
       )
     } catch (error) {
       this.hideVideoLoading()
       this.renderStatus(
-        error instanceof Error ? error.message : "Could not create the exercise.",
+        error instanceof Error ? error.message : this.t("status.createError"),
         "error",
       )
       this.session = null
       this.renderEmptyState()
     } finally {
       this.elements.generateLessonButton.disabled = false
-      this.elements.generateLessonButton.textContent = "Start practice"
+      this.elements.generateLessonButton.textContent = this.t("entry.start")
     }
   }
 
@@ -255,7 +462,7 @@ class AppController {
 
     const firstEmptyBlankIndex = this.getFirstEmptyBlankIndex()
     if (firstEmptyBlankIndex !== null) {
-      this.renderStatus("Fill every blank before checking this sentence.", "warning")
+      this.renderStatus(this.t("status.fillBlank"), "warning")
       this.focusBlankByIndex(firstEmptyBlankIndex, "end")
       return
     }
@@ -266,7 +473,7 @@ class AppController {
     this.elements.submitAnswerButton.disabled = true
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
-    this.renderStatus("Scoring your answer...")
+    this.renderStatus(this.t("status.scoring"))
 
     try {
       const scorePayload = await this.scoreAnswer({
@@ -293,22 +500,22 @@ class AppController {
 
       if (isCorrect) {
         this.setState(AppState.WAITING_FOR_INPUT)
-        this.setModeOverride("Correct")
+        this.setModeOverride(this.t("mode.correct"))
         this.disableInlineInputs(true)
         this.elements.submitAnswerButton.disabled = true
-        this.elements.submitAnswerButton.textContent = "Correct"
-        this.renderStatus("Correct. Moving to the next segment...", "success")
+        this.elements.submitAnswerButton.textContent = this.t("mode.correct")
+        this.renderStatus(this.t("status.correctNext"), "success")
         this.pendingAdvanceId = window.setTimeout(() => {
           this.pendingAdvanceId = null
           this.advanceToNextStep()
         }, 650)
       } else {
         this.setState(AppState.WAITING_FOR_INPUT)
-        this.setModeOverride("Needs review")
+        this.setModeOverride(this.t("mode.review"))
         this.disableInlineInputs(false)
         this.elements.submitAnswerButton.disabled = false
-        this.elements.submitAnswerButton.textContent = "Check again"
-        this.renderStatus("Needs review. Edit the highlighted blanks and press Enter again.", "warning")
+        this.elements.submitAnswerButton.textContent = this.t("button.checkAgain")
+        this.renderStatus(this.t("status.review"), "warning")
         this.focusFirstIncorrectBlank()
       }
     } catch (error) {
@@ -360,7 +567,7 @@ class AppController {
 
   startSession() {
     if (!this.session) {
-      this.renderStatus("Create an exercise first.")
+      this.renderStatus(this.t("status.createFirst"))
       return
     }
 
@@ -369,7 +576,7 @@ class AppController {
     }
 
     if (this.state === AppState.WAITING_FOR_INPUT) {
-      this.renderStatus("Finish the current sentence before continuing.")
+      this.renderStatus(this.t("status.finishCurrent"))
       return
     }
 
@@ -401,14 +608,14 @@ class AppController {
     this.clearBlankResults()
     this.disableInlineInputs(true)
     this.elements.submitAnswerButton.disabled = true
-    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
 
     this.playerController.seekTo(currentItem.start)
     this.playerController.play()
     this.setState(AppState.PLAYING)
-    this.renderStatus("Replaying the current segment.")
+    this.renderStatus(this.t("status.replaying"))
     this.startFrameLoop()
   }
 
@@ -426,7 +633,7 @@ class AppController {
     this.clearBlankResults()
     this.disableInlineInputs(true)
     this.elements.submitAnswerButton.disabled = true
-    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
 
@@ -434,7 +641,10 @@ class AppController {
     this.playerController.play()
     this.setState(AppState.PLAYING)
     this.renderStatus(
-      `Playing segment ${this.session.currentIndex + 1}/${this.session.exercise.items.length}.`,
+      this.t("status.playing", {
+        current: this.session.currentIndex + 1,
+        total: this.session.exercise.items.length,
+      }),
     )
     this.startFrameLoop()
   }
@@ -445,9 +655,9 @@ class AppController {
     this.setState(AppState.WAITING_FOR_INPUT)
     this.disableInlineInputs(false)
     this.elements.submitAnswerButton.disabled = false
-    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
     this.focusFirstInlineInput()
-    this.renderStatus("The video is paused. Fill the missing words and submit the sentence.")
+    this.renderStatus(this.t("status.paused"))
   }
 
   advanceToNextStep() {
@@ -461,7 +671,7 @@ class AppController {
       return
     }
 
-    this.renderStatus("Preparing the next segment...")
+    this.renderStatus(this.t("status.preparing"))
     this.session.currentIndex += 1
     this.playCurrentSegment()
   }
@@ -471,12 +681,12 @@ class AppController {
     this.setState(AppState.FINISHED)
     this.disableInlineInputs(true)
     this.elements.submitAnswerButton.disabled = true
-    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
     this.renderSummary()
     this.renderStatus(
-      "Practice session completed. Review your results or start another video.",
+      this.t("status.completed"),
       "success",
     )
     void this.handleCompletedSessionPersistence()
@@ -547,7 +757,7 @@ class AppController {
     this.elements.emptyState.hidden = true
     this.elements.exerciseWorkspace.hidden = false
     this.elements.answerForm.hidden = false
-    this.elements.submitAnswerButton.textContent = "Check answer"
+    this.elements.submitAnswerButton.textContent = this.t("action.checkAnswer")
     this.elements.nextSegmentButton.hidden = true
     this.elements.nextSegmentButton.disabled = true
     this.renderWorkspaceMode()
@@ -559,10 +769,13 @@ class AppController {
       return
     }
 
-    const progressLabel = `Segment ${this.session.currentIndex + 1} / ${this.session.exercise.items.length}`
+    const progressLabel = this.t("progress.segment", {
+      current: this.session.currentIndex + 1,
+      total: this.session.exercise.items.length,
+    })
     this.elements.progressText.textContent = progressLabel
     this.elements.railProgressText.textContent = progressLabel
-    this.elements.promptLabel.textContent = `Current sentence | ${progressLabel}`
+    this.elements.promptLabel.textContent = `${this.t("prompt.current")} | ${progressLabel}`
 
     this.currentBlankInputs = []
     this.elements.promptText.innerHTML = ""
@@ -593,7 +806,7 @@ class AppController {
       input.dataset.baseLength = String(Math.max(6, Math.min(answerLength + 1, 14)))
       input.placeholder = "..."
       input.disabled = this.state !== AppState.WAITING_FOR_INPUT
-      input.setAttribute("aria-label", `Blank ${answerIndex + 1}`)
+      input.setAttribute("aria-label", this.t("blank.label", { index: answerIndex + 1 }))
       this.attachBlankInputHandlers(input, answerIndex)
       this.resizeBlankInput(input)
 
@@ -614,11 +827,11 @@ class AppController {
       const fallbackInput = document.createElement("input")
       fallbackInput.type = "text"
       fallbackInput.className = "inline-blank-input"
-      fallbackInput.placeholder = "Type what you heard"
+      fallbackInput.placeholder = this.t("blank.placeholder")
       fallbackInput.size = 24
       fallbackInput.dataset.baseLength = "12"
       fallbackInput.disabled = this.state !== AppState.WAITING_FOR_INPUT
-      fallbackInput.setAttribute("aria-label", "Answer input")
+      fallbackInput.setAttribute("aria-label", this.t("blank.answer"))
       this.attachBlankInputHandlers(fallbackInput, 0)
       this.resizeBlankInput(fallbackInput)
       this.currentBlankInputs.push(fallbackInput)
@@ -668,7 +881,10 @@ class AppController {
       item.className = "result-item"
 
       const title = document.createElement("strong")
-      title.textContent = `Segment ${index + 1} - ${result.isCorrect ? "Correct" : "Needs review"}`
+      title.textContent = `${this.t("progress.segment", {
+        current: index + 1,
+        total: totalSegments,
+      })} - ${result.isCorrect ? this.t("mode.correct") : this.t("mode.review")}`
 
       const score = document.createElement("p")
       score.className = "result-copy"
@@ -705,7 +921,7 @@ class AppController {
     this.elements.videoUrlInput.value = ""
     this.elements.videoUrlInput.removeAttribute("aria-invalid")
     this.setState(AppState.IDLE)
-    this.renderStatus("Ready when you are.")
+    this.renderStatus(this.t("entry.ready"))
     this.renderAccuracy()
     this.elements.videoUrlInput.focus()
   }
@@ -740,7 +956,7 @@ class AppController {
     this.elements.workspaceStatusMessage.setAttribute("data-variant", variant)
   }
 
-  showVideoLoading(message = "Loading video...") {
+  showVideoLoading(message = this.t("workspace.loadingVideo")) {
     this.elements.videoLoadingIndicator.hidden = false
     this.elements.videoLoadingIndicator.textContent = message
   }
@@ -769,12 +985,12 @@ class AppController {
 
   renderWorkspaceMode() {
     const labelMap = {
-      [AppState.IDLE]: "Waiting",
-      [AppState.READY]: "Ready",
-      [AppState.PLAYING]: "Listening",
-      [AppState.WAITING_FOR_INPUT]: "Type the missing words",
-      [AppState.CHECKING]: "Checking",
-      [AppState.FINISHED]: "Finished",
+      [AppState.IDLE]: this.t("mode.waiting"),
+      [AppState.READY]: this.t("mode.ready"),
+      [AppState.PLAYING]: this.t("mode.listening"),
+      [AppState.WAITING_FOR_INPUT]: this.t("mode.input"),
+      [AppState.CHECKING]: this.t("mode.checking"),
+      [AppState.FINISHED]: this.t("mode.finished"),
     }
     const modeLabel = this.modeLabelOverride ?? labelMap[this.state] ?? this.state
     this.elements.workspaceMode.textContent = modeLabel
@@ -782,13 +998,13 @@ class AppController {
     this.elements.workspaceStateBadge.textContent = modeLabel
 
     let badgeVariant = "idle"
-    if (modeLabel === "Correct") {
+    if (modeLabel === this.t("mode.correct")) {
       badgeVariant = "success"
-    } else if (modeLabel === "Needs review") {
+    } else if (modeLabel === this.t("mode.review")) {
       badgeVariant = "review"
     } else if (
-      modeLabel === "Loading transcript" ||
-      modeLabel === "Loading video" ||
+      modeLabel === this.t("status.loadingTranscriptMode") ||
+      modeLabel === this.t("status.loadingVideoMode") ||
       this.state === AppState.CHECKING
     ) {
       badgeVariant = "loading"
@@ -812,36 +1028,36 @@ class AppController {
     this.renderWorkspaceMode()
 
     if (nextState === AppState.FINISHED) {
-      this.elements.startSessionButton.textContent = "Practice again"
+      this.elements.startSessionButton.textContent = this.t("button.practiceAgain")
       this.elements.startSessionButton.disabled = false
       return
     }
 
     if (nextState === AppState.READY) {
-      this.elements.startSessionButton.textContent = "Start practice"
+      this.elements.startSessionButton.textContent = this.t("entry.start")
       this.elements.startSessionButton.disabled = false
       return
     }
 
     if (nextState === AppState.PLAYING) {
-      this.elements.startSessionButton.textContent = "Listening..."
+      this.elements.startSessionButton.textContent = this.t("button.listening")
       this.elements.startSessionButton.disabled = true
       return
     }
 
     if (nextState === AppState.WAITING_FOR_INPUT) {
-      this.elements.startSessionButton.textContent = "Waiting for input"
+      this.elements.startSessionButton.textContent = this.t("button.waiting")
       this.elements.startSessionButton.disabled = true
       return
     }
 
     if (nextState === AppState.CHECKING) {
-      this.elements.startSessionButton.textContent = "Checking..."
+      this.elements.startSessionButton.textContent = this.t("button.checking")
       this.elements.startSessionButton.disabled = true
       return
     }
 
-    this.elements.startSessionButton.textContent = "Start practice"
+    this.elements.startSessionButton.textContent = this.t("entry.start")
     this.elements.startSessionButton.disabled = !this.session
   }
 
@@ -1309,7 +1525,24 @@ class AppController {
 }
 
 const elements = {
+  languageSwitch: document.querySelector(".language-switch"),
+  languageButtons: document.querySelectorAll("[data-language-choice]"),
+  profileButton: document.getElementById("profile-button"),
   topbarSessionLabel: document.getElementById("topbar-session-label"),
+  entryTitle: document.getElementById("entry-title"),
+  entryCopy: document.querySelector(".entry-copy"),
+  entryHelper: document.querySelector(".entry-helper"),
+  videoUrlLabel: document.querySelector('label[for="video-url"]'),
+  workspaceTitle: document.getElementById("workspace-title"),
+  videoTitle: document.getElementById("video-title"),
+  exerciseTitle: document.getElementById("exercise-title"),
+  practiceShortcutNote: document.querySelector(".practice-shortcut-note"),
+  resultsSummaryLabel: document.querySelector(".results-panel .panel-label"),
+  resultsTitle: document.getElementById("results-title"),
+  totalSegmentsLabel: document.querySelector(".summary-metric:nth-child(1) .summary-metric-label"),
+  averageAccuracyLabel: document.querySelector(".summary-metric:nth-child(2) .summary-metric-label"),
+  correctCountLabel: document.querySelector(".summary-metric:nth-child(3) .summary-metric-label"),
+  reviewCountLabel: document.querySelector(".summary-metric:nth-child(4) .summary-metric-label"),
   entryStage: document.getElementById("entry-stage"),
   workspaceStage: document.getElementById("workspace-stage"),
   lessonForm: document.getElementById("lesson-form"),

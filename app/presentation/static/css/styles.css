@@ -165,11 +165,78 @@ a {
   white-space: nowrap;
 }
 
-.profile-button {
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.language-switch {
+  position: relative;
   display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  width: 86px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.language-switch::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 6px 14px rgba(17, 24, 39, 0.16);
+  transition: transform var(--transition-fast);
+}
+
+.language-switch[data-language="vi"]::before {
+  transform: translateX(100%);
+}
+
+.language-switch-option {
+  position: relative;
+  z-index: 1;
+  display: grid;
   place-items: center;
-  width: 40px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition:
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.language-switch-option:hover {
+  transform: translateY(-1px);
+}
+
+.language-switch-option.is-active {
+  color: #ffffff;
+}
+
+.profile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   height: 40px;
+  padding: 0 12px 0 8px;
   border: 1px solid var(--color-border-strong);
   border-radius: 999px;
   background: var(--color-surface);
@@ -177,10 +244,24 @@ a {
   font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
   transition:
     border-color var(--transition-fast),
     background-color var(--transition-fast),
     color var(--transition-fast);
+}
+
+.profile-button::before {
+  content: "";
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, #ffffff 0 18%, transparent 19%),
+    linear-gradient(135deg, #dbeafe, #f0fdf4 58%, #fff7ed);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.7);
 }
 
 .profile-button:hover {
@@ -922,6 +1003,14 @@ button:disabled {
 
   .study-topbar-inner {
     min-height: 64px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .language-switch {
+    width: 76px;
   }
 
   .topbar-brand-group {

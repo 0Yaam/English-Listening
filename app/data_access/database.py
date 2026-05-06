@@ -6,6 +6,8 @@ from functools import lru_cache
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from sqlalchemy import inspect
+from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
@@ -66,3 +68,28 @@ def init_db() -> None:
     from app.data_access.models import vocabulary_orm  # noqa: F401
 
     Base.metadata.create_all(bind=get_engine())
+    _ensure_user_profile_columns()
+
+
+def _ensure_user_profile_columns() -> None:
+    engine = get_engine()
+    if not engine.url.drivername.startswith("sqlite"):
+        return
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    statements: list[str] = []
+    if "avatar_url" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+    if "preferred_language" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(10) DEFAULT 'en'")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))

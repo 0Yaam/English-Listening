@@ -14,6 +14,8 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
+    avatar_url: str | None = None
+    preferred_language: str = "en"
     created_at: datetime
 
     @classmethod
@@ -22,5 +24,7 @@ class UserResponse(BaseModel):
             id=user.id,
             username=user.username,
             email=user.email,
+            avatar_url=user.avatar_url,
+            preferred_language=user.preferred_language,
             created_at=user.created_at,
         )

@@ -8,13 +8,19 @@ from datetime import timedelta
 from app.business.models.transcript import Transcript
 from app.business.models.shadowing_session import ShadowingSession
 from app.business.models.quiz import QuizAttempt
+from app.business.models.user import User
 from app.data_access.repositories.quiz_repository import QuizRepository
 from app.data_access.repositories.session_repository import SessionRepository
 from app.data_access.repositories.transcript_repository import TranscriptRepository
 from app.data_access.repositories.user_repository import UserRepository
+from app.security.password import hash_password
+from app.security.password import verify_password
 
 
 class ProfileService:
+    _SUPPORTED_LANGUAGES = {"en", "vi"}
+    _MAX_AVATAR_URL_LENGTH = 7_100_000
+
     def __init__(
         self,
         *,
@@ -86,6 +92,79 @@ class ProfileService:
                 user_id=user_id,
             ),
         }
+
+    def update_account(
+        self,
+        *,
+        user_id: int,
+        username: str,
+        avatar_url: str | None,
+        preferred_language: str,
+    ) -> User | None:
+        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            return None
+
+        normalized_username = username.strip()
+        if not normalized_username:
+            raise ValueError("username must not be empty.")
+
+        existing_user = self._user_repository.get_by_username(normalized_username)
+        if existing_user is not None and existing_user.id != user_id:
+            raise ValueError("username is already taken.")
+
+        normalized_language = preferred_language.strip().lower() or "en"
+        if normalized_language not in self._SUPPORTED_LANGUAGES:
+            raise ValueError("preferred language must be en or vi.")
+
+        normalized_avatar_url = self._normalize_avatar_url(avatar_url)
+
+        return self._user_repository.update_account(
+            user_id=user_id,
+            username=normalized_username,
+            avatar_url=normalized_avatar_url,
+            preferred_language=normalized_language,
+        )
+
+    def change_password(
+        self,
+        *,
+        user_id: int,
+        current_password: str,
+        new_password: str,
+    ) -> bool:
+        user = self._user_repository.get_by_id(user_id)
+        if user is None:
+            return False
+
+        if not verify_password(current_password, user.password_hash):
+            raise ValueError("current password is incorrect.")
+        if len(new_password) < 8:
+            raise ValueError("new password must be at least 8 characters long.")
+
+        self._user_repository.update_password_hash(
+            user_id=user_id,
+            password_hash=hash_password(new_password),
+        )
+        return True
+
+    def _normalize_avatar_url(self, avatar_url: str | None) -> str | None:
+        if avatar_url is None:
+            return None
+
+        normalized_avatar_url = avatar_url.strip()
+        if not normalized_avatar_url:
+            return None
+        if len(normalized_avatar_url) > self._MAX_AVATAR_URL_LENGTH:
+            raise ValueError("avatar image is too large.")
+        if not (
+            normalized_avatar_url.startswith("data:image/")
+            or normalized_avatar_url.startswith("https://")
+            or normalized_avatar_url.startswith("http://")
+        ):
+            raise ValueError("avatar must be an image data URL or image URL.")
+
+        return normalized_avatar_url
 
     @staticmethod
     def _fallback_quiz_status(transcript: Transcript | None) -> str:

@@ -4,10 +4,28 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 
 from app.business.models.shadowing_session import ShadowingSession
 from app.business.models.transcript import Transcript
 from app.presentation.schemas.user import UserResponse
+
+
+class ProfileAccountUpdateRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=100)
+    avatar_url: str | None = Field(default=None, max_length=7_100_000)
+    preferred_language: str = Field(default="en", min_length=2, max_length=10)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=255)
+    new_password: str = Field(..., min_length=8, max_length=255)
+
+
+class PasswordChangeResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    message: str
 
 
 class ProfileStatsResponse(BaseModel):

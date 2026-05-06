@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Learning Dashboard</title>
-    <link rel="stylesheet" href="/static/dashboard.css?v=20260506b" />
+    <link rel="stylesheet" href="/static/dashboard.css?v=20260506e" />
   </head>
   <body>
     <div class="dashboard-shell">
@@ -26,7 +26,7 @@
         </nav>
 
         <div class="sidebar-actions">
-          <a href="/" class="button-ghost">New Practice</a>
+          <a id="dashboard-new-practice" href="/" class="button-ghost">New Practice</a>
           <button id="dashboard-sign-out" type="button" class="button-text">Sign out</button>
         </div>
       </aside>
@@ -38,8 +38,8 @@
             <h2 id="view-title">Dashboard</h2>
           </div>
           <div class="topbar-actions">
-            <button type="button" class="button-ghost" data-view-link="vocabulary">Vocabulary</button>
-            <button type="button" class="button-primary" data-view-link="sessions">Study Session</button>
+            <button id="topbar-vocabulary-button" type="button" class="button-ghost" data-view-link="vocabulary">Vocabulary</button>
+            <button id="topbar-study-button" type="button" class="button-primary" data-view-link="sessions">Study Session</button>
           </div>
         </header>
 
@@ -51,6 +51,6 @@
       </main>
     </div>
 
-    <script type="module" src="/static/dashboard.js?v=20260506b"></script>
+    <script type="module" src="/static/dashboard.js?v=20260506e"></script>
   </body>
 </html>

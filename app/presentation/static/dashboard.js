@@ -22,13 +22,272 @@ const VIEW_CONTEXT = {
   settings: "Account and quiz defaults",
 }
 
+const MAX_AVATAR_FILE_SIZE_BYTES = 5 * 1024 * 1024
+
 const QUESTION_TYPES = [
-  ["mixed", "Mixed"],
-  ["inference", "Inference"],
-  ["vocabulary", "Vocabulary"],
-  ["main_idea", "Main idea"],
-  ["detail", "Detail"],
+  ["mixed", "questionType.mixed"],
+  ["inference", "questionType.inference"],
+  ["vocabulary", "questionType.vocabulary"],
+  ["main_idea", "questionType.mainIdea"],
+  ["detail", "questionType.detail"],
 ]
+
+const I18N = {
+  en: {
+    "nav.dashboard": "Dashboard",
+    "nav.sessions": "Sessions",
+    "nav.quizHistory": "Quiz History",
+    "nav.vocabulary": "Vocabulary",
+    "nav.settings": "Settings",
+    "view.dashboard.title": "Dashboard",
+    "view.dashboard.context": "Learning overview",
+    "view.sessions.title": "Sessions",
+    "view.sessions.context": "Transcript, reading quiz, and attempts",
+    "view.quiz-history.title": "Quiz History",
+    "view.quiz-history.context": "Saved quiz review",
+    "view.vocabulary.title": "Vocabulary",
+    "view.vocabulary.context": "Transcript vocabulary and mini quiz",
+    "view.settings.title": "Settings",
+    "view.settings.context": "Account and quiz defaults",
+    "shell.loadingLearner": "Loading learner",
+    "shell.language": "Language",
+    "shell.newPractice": "New Practice",
+    "shell.signOut": "Sign out",
+    "shell.vocabulary": "Vocabulary",
+    "shell.studySession": "Study Session",
+    "metric.totalSessions": "Total Sessions",
+    "metric.savedTranscripts": "Saved Transcripts",
+    "metric.averageAccuracy": "Average Accuracy",
+    "metric.totalQuizzes": "Total Quizzes",
+    "metric.averageQuizScore": "Average Quiz Score",
+    "settings.eyebrow": "Account Center",
+    "settings.title": "Settings",
+    "settings.copy": "Manage your learner profile, password, language, and study defaults.",
+    "settings.reset": "Reset Local Settings",
+    "settings.accountEyebrow": "Account",
+    "settings.accountTitle": "Profile and Avatar",
+    "settings.avatarHint": "PNG, JPG, or SVG up to 5 MB works best.",
+    "settings.chooseAvatar": "Choose image",
+    "settings.removeAvatar": "Remove",
+    "settings.username": "Display name",
+    "settings.email": "Email",
+    "settings.emailHelp": "Email is used for login and is not editable here.",
+    "settings.preferredLanguage": "Interface language",
+    "settings.saveProfile": "Save Profile",
+    "settings.signedIn": "Signed in",
+    "settings.sessionTitle": "Session",
+    "settings.sessionCopy": "Sign out from this browser and return to the login page.",
+    "settings.passwordEyebrow": "Security",
+    "settings.passwordTitle": "Change Password",
+    "settings.currentPassword": "Current password",
+    "settings.newPassword": "New password",
+    "settings.confirmPassword": "Confirm new password",
+    "settings.updatePassword": "Update Password",
+    "settings.quizEyebrow": "Quiz",
+    "settings.quizTitle": "Question Defaults",
+    "settings.vocabEyebrow": "Vocabulary",
+    "settings.vocabTitle": "Practice Behavior",
+    "settings.autoMaskLabel": "Hide word bank during Vocabulary Check",
+    "settings.autoMaskDescription": "Automatically blur the vocabulary bank when a mini quiz starts.",
+    "settings.collapseSourceLabel": "Open Vocabulary with source collapsed",
+    "settings.collapseSourceDescription": "Give Vocabulary Bank more room by default.",
+    "settings.interfaceEyebrow": "Interface",
+    "settings.interfaceTitle": "Comfort",
+    "settings.reduceMotionLabel": "Reduce motion",
+    "settings.reduceMotionDescription": "Shorten animation and transition effects across the dashboard.",
+    "settings.localNote": "Settings are stored locally in this browser.",
+    "settings.profileSaved": "Profile updated.",
+    "settings.passwordSaved": "Password updated.",
+    "settings.passwordMismatch": "New password confirmation does not match.",
+    "settings.avatarTooLarge": "Please choose an image up to 5 MB.",
+    "settings.avatarInvalid": "Please choose a valid image file.",
+    "control.difficulty": "Difficulty",
+    "control.questionType": "Question Type",
+    "difficulty.easy": "Easy",
+    "difficulty.medium": "Medium",
+    "difficulty.hard": "Hard",
+    "questionType.mixed": "Mixed",
+    "questionType.inference": "Inference",
+    "questionType.vocabulary": "Vocabulary",
+    "questionType.mainIdea": "Main idea",
+    "questionType.detail": "Detail",
+    "status.all": "All",
+    "status.completed": "Completed",
+    "status.quizReady": "Quiz Ready",
+    "status.quizGenerated": "Quiz Generated",
+    "common.search": "Search",
+    "common.status": "Status",
+    "common.date": "Date",
+    "common.titleOrVideo": "Title or video ID",
+    "common.study": "Study",
+    "common.words": "Words",
+    "common.transcriptSource": "Transcript Source",
+    "common.loadingTranscripts": "Loading transcripts.",
+    "common.loadingTranscriptList": "Loading transcript list.",
+    "common.couldNotLoadSessions": "Could not load sessions.",
+    "common.noSessionsMatch": "No sessions match the current filters.",
+    "dashboard.loading": "Loading dashboard.",
+    "dashboard.error": "Could not load dashboard.",
+    "dashboard.accuracyTrend": "Accuracy Trend",
+    "dashboard.accuracyCopy": "Daily listening accuracy from saved sessions.",
+    "dashboard.focusArea": "Focus Area",
+    "dashboard.focusCopy": "Based on wrong quiz answers.",
+    "dashboard.weakestSkill": "Weakest Skill",
+    "dashboard.quizScore": "Quiz Score",
+    "dashboard.quizScoreCopy": "Daily average from saved attempts.",
+    "dashboard.continueLearning": "Continue Learning",
+    "dashboard.continueCopy": "Open one flow, then move between transcript, quiz, attempts, and vocabulary.",
+    "dashboard.noSessionsYet": "No sessions yet.",
+    "dashboard.notEnoughQuiz": "Not enough quiz data",
+    "dashboard.focusSummary": "Submit quizzes to identify your focus area.",
+    "dashboard.misses": "misses",
+    "sessions.workspace": "Study Workspace",
+    "sessions.emptyCopy": "Select a session to review transcript, generate a quiz, and inspect saved attempts.",
+    "sessions.selected": "Selected Session",
+    "sessions.readingQuiz": "Reading Quiz",
+    "sessions.attempts": "Attempts",
+    "sessions.loadingSelected": "Loading selected transcript.",
+    "sessions.workspaceAria": "Session workspace",
+    "sessions.summary": "sessions in this workspace.",
+    "quizHistory.loadingSessions": "Loading sessions first.",
+    "quizHistory.loading": "Loading quiz history.",
+    "quizHistory.error": "Could not load quiz history.",
+    "quizHistory.openToLoad": "Open this view to load saved quiz attempts.",
+    "quizHistory.load": "Load History",
+    "quizHistory.noAttempts": "No submitted quiz attempts yet.",
+    "vocab.source": "Vocabulary Source",
+    "vocab.sourceCopy": "Pick the transcript that owns the word bank.",
+    "vocab.loading": "Loading transcripts.",
+    "vocab.empty": "No transcripts yet. Complete a session before building vocabulary.",
+  },
+  vi: {
+    "nav.dashboard": "Tổng quan",
+    "nav.sessions": "Buổi học",
+    "nav.quizHistory": "Lịch sử quiz",
+    "nav.vocabulary": "Từ vựng",
+    "nav.settings": "Cài đặt",
+    "view.dashboard.title": "Tổng quan",
+    "view.dashboard.context": "Theo dõi tiến độ học tập",
+    "view.sessions.title": "Buổi học",
+    "view.sessions.context": "Transcript, quiz đọc hiểu và lịch sử làm bài",
+    "view.quiz-history.title": "Lịch sử quiz",
+    "view.quiz-history.context": "Xem lại các lần làm quiz đã lưu",
+    "view.vocabulary.title": "Từ vựng",
+    "view.vocabulary.context": "Từ vựng từ transcript và mini quiz",
+    "view.settings.title": "Cài đặt",
+    "view.settings.context": "Tài khoản và mặc định học tập",
+    "shell.loadingLearner": "Đang tải người học",
+    "shell.language": "Ngôn ngữ",
+    "shell.newPractice": "Luyện bài mới",
+    "shell.signOut": "Đăng xuất",
+    "shell.vocabulary": "Từ vựng",
+    "shell.studySession": "Buổi học",
+    "metric.totalSessions": "Tổng buổi học",
+    "metric.savedTranscripts": "Transcript đã lưu",
+    "metric.averageAccuracy": "Độ chính xác TB",
+    "metric.totalQuizzes": "Tổng quiz",
+    "metric.averageQuizScore": "Điểm quiz TB",
+    "settings.eyebrow": "Trung tâm tài khoản",
+    "settings.title": "Cài đặt",
+    "settings.copy": "Quản lý hồ sơ, mật khẩu, ngôn ngữ và mặc định học tập.",
+    "settings.reset": "Đặt lại cài đặt máy này",
+    "settings.accountEyebrow": "Tài khoản",
+    "settings.accountTitle": "Hồ sơ và ảnh đại diện",
+    "settings.avatarHint": "Nên dùng PNG, JPG hoặc SVG tối đa 5 MB.",
+    "settings.chooseAvatar": "Chọn ảnh",
+    "settings.removeAvatar": "Xóa ảnh",
+    "settings.username": "Tên hiển thị",
+    "settings.email": "Email",
+    "settings.emailHelp": "Email dùng để đăng nhập nên chưa chỉnh ở đây.",
+    "settings.preferredLanguage": "Ngôn ngữ giao diện",
+    "settings.saveProfile": "Lưu hồ sơ",
+    "settings.signedIn": "Đã đăng nhập",
+    "settings.sessionTitle": "Phiên đăng nhập",
+    "settings.sessionCopy": "Đăng xuất khỏi trình duyệt này và quay lại trang đăng nhập.",
+    "settings.passwordEyebrow": "Bảo mật",
+    "settings.passwordTitle": "Đổi mật khẩu",
+    "settings.currentPassword": "Mật khẩu hiện tại",
+    "settings.newPassword": "Mật khẩu mới",
+    "settings.confirmPassword": "Nhập lại mật khẩu mới",
+    "settings.updatePassword": "Cập nhật mật khẩu",
+    "settings.quizEyebrow": "Quiz",
+    "settings.quizTitle": "Mặc định câu hỏi",
+    "settings.vocabEyebrow": "Từ vựng",
+    "settings.vocabTitle": "Hành vi luyện tập",
+    "settings.autoMaskLabel": "Ẩn word bank khi làm Vocabulary Check",
+    "settings.autoMaskDescription": "Tự làm mờ Vocabulary Bank khi bắt đầu mini quiz.",
+    "settings.collapseSourceLabel": "Mở Vocabulary với nguồn transcript đã thu gọn",
+    "settings.collapseSourceDescription": "Cho Vocabulary Bank thêm không gian hiển thị.",
+    "settings.interfaceEyebrow": "Giao diện",
+    "settings.interfaceTitle": "Độ thoải mái",
+    "settings.reduceMotionLabel": "Giảm chuyển động",
+    "settings.reduceMotionDescription": "Rút ngắn hiệu ứng chuyển động trong dashboard.",
+    "settings.localNote": "Một số cài đặt được lưu trên trình duyệt này.",
+    "settings.profileSaved": "Đã cập nhật hồ sơ.",
+    "settings.passwordSaved": "Đã cập nhật mật khẩu.",
+    "settings.passwordMismatch": "Mật khẩu mới nhập lại chưa khớp.",
+    "settings.avatarTooLarge": "Vui lòng chọn ảnh tối đa 5 MB.",
+    "settings.avatarInvalid": "Vui lòng chọn đúng file ảnh.",
+    "control.difficulty": "Độ khó",
+    "control.questionType": "Dạng câu hỏi",
+    "difficulty.easy": "Dễ",
+    "difficulty.medium": "Trung bình",
+    "difficulty.hard": "Khó",
+    "questionType.mixed": "Kết hợp",
+    "questionType.inference": "Suy luận",
+    "questionType.vocabulary": "Từ vựng",
+    "questionType.mainIdea": "Ý chính",
+    "questionType.detail": "Chi tiết",
+    "status.all": "Tất cả",
+    "status.completed": "Hoàn thành",
+    "status.quizReady": "Sẵn sàng tạo quiz",
+    "status.quizGenerated": "Đã tạo quiz",
+    "common.search": "Tìm kiếm",
+    "common.status": "Trạng thái",
+    "common.date": "Ngày",
+    "common.titleOrVideo": "Tiêu đề hoặc video ID",
+    "common.study": "Học",
+    "common.words": "Từ vựng",
+    "common.transcriptSource": "Nguồn transcript",
+    "common.loadingTranscripts": "Đang tải transcript.",
+    "common.loadingTranscriptList": "Đang tải danh sách transcript.",
+    "common.couldNotLoadSessions": "Không tải được buổi học.",
+    "common.noSessionsMatch": "Không có buổi học phù hợp bộ lọc.",
+    "dashboard.loading": "Đang tải tổng quan.",
+    "dashboard.error": "Không tải được tổng quan.",
+    "dashboard.accuracyTrend": "Xu hướng độ chính xác",
+    "dashboard.accuracyCopy": "Độ chính xác nghe mỗi ngày từ các buổi đã lưu.",
+    "dashboard.focusArea": "Điểm cần tập trung",
+    "dashboard.focusCopy": "Dựa trên các câu quiz làm sai.",
+    "dashboard.weakestSkill": "Kỹ năng yếu nhất",
+    "dashboard.quizScore": "Điểm quiz",
+    "dashboard.quizScoreCopy": "Điểm trung bình mỗi ngày từ các lần làm đã lưu.",
+    "dashboard.continueLearning": "Tiếp tục học",
+    "dashboard.continueCopy": "Mở một luồng học rồi chuyển giữa transcript, quiz, attempts và từ vựng.",
+    "dashboard.noSessionsYet": "Chưa có buổi học nào.",
+    "dashboard.notEnoughQuiz": "Chưa đủ dữ liệu quiz",
+    "dashboard.focusSummary": "Làm thêm vài quiz để xác định phần cần tập trung.",
+    "dashboard.misses": "lần sai",
+    "sessions.workspace": "Không gian học",
+    "sessions.emptyCopy": "Chọn một buổi học để xem transcript, tạo quiz và xem lại các lần làm.",
+    "sessions.selected": "Buổi học đã chọn",
+    "sessions.readingQuiz": "Quiz đọc hiểu",
+    "sessions.attempts": "Lần làm",
+    "sessions.loadingSelected": "Đang tải transcript đã chọn.",
+    "sessions.workspaceAria": "Không gian buổi học",
+    "sessions.summary": "buổi học trong không gian này.",
+    "quizHistory.loadingSessions": "Đang tải buổi học trước.",
+    "quizHistory.loading": "Đang tải lịch sử quiz.",
+    "quizHistory.error": "Không tải được lịch sử quiz.",
+    "quizHistory.openToLoad": "Mở màn này để tải các lần làm quiz đã lưu.",
+    "quizHistory.load": "Tải lịch sử",
+    "quizHistory.noAttempts": "Chưa có lần làm quiz nào.",
+    "vocab.source": "Nguồn từ vựng",
+    "vocab.sourceCopy": "Chọn transcript sở hữu bộ từ vựng.",
+    "vocab.loading": "Đang tải transcript.",
+    "vocab.empty": "Chưa có transcript. Hãy hoàn thành một buổi học trước khi tạo từ vựng.",
+  },
+}
 
 const state = {
   activeView: "dashboard",
@@ -80,6 +339,7 @@ const state = {
   vocabQuizBySessionId: new Map(),
   vocabQuizAnswersBySessionId: new Map(),
   settings: {
+    language: window.localStorage.getItem("dashboard_language") ?? "en",
     defaultDifficulty: window.localStorage.getItem("dashboard_default_difficulty") ?? "medium",
     defaultQuestionType: window.localStorage.getItem("dashboard_default_question_type") ?? "mixed",
     autoMaskVocabulary:
@@ -88,12 +348,19 @@ const state = {
       window.localStorage.getItem("dashboard_collapse_vocabulary_source") === "true",
     reduceMotion: window.localStorage.getItem("dashboard_reduce_motion") === "true",
   },
+  accountNotice: "",
+  accountNoticeTone: "success",
+  passwordNotice: "",
+  passwordNoticeTone: "success",
 }
 
 const elements = {
   avatar: document.getElementById("dashboard-avatar"),
   userline: document.getElementById("dashboard-userline"),
+  newPracticeButton: document.getElementById("dashboard-new-practice"),
   signOutButton: document.getElementById("dashboard-sign-out"),
+  topbarVocabularyButton: document.getElementById("topbar-vocabulary-button"),
+  topbarStudyButton: document.getElementById("topbar-study-button"),
   viewTitle: document.getElementById("view-title"),
   contextSummary: document.getElementById("context-summary"),
   nav: document.querySelector(".sidebar-nav"),
@@ -114,6 +381,20 @@ const escapeHtml = (value) => {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
+}
+
+const normalizeLanguage = (language) => {
+  return language === "vi" ? "vi" : "en"
+}
+
+const t = (key) => {
+  const language = normalizeLanguage(state.settings.language)
+  return I18N[language]?.[key] ?? I18N.en[key] ?? key
+}
+
+const applyLanguage = () => {
+  const language = normalizeLanguage(state.settings.language)
+  document.documentElement.lang = language === "vi" ? "vi" : "en"
 }
 
 const formatDate = (isoDate) => {
@@ -161,6 +442,23 @@ const formatPercent = (value) => {
   return `${Math.round(Number(value) * 10) / 10}%`
 }
 
+const formatWordCount = (count) => {
+  return state.settings.language === "vi" ? `${count} từ` : `${count} words`
+}
+
+const getQuizStatusLabel = (status) => {
+  if (status === "Completed") {
+    return t("status.completed")
+  }
+  if (status === "Quiz Ready") {
+    return t("status.quizReady")
+  }
+  if (status === "Quiz Generated") {
+    return t("status.quizGenerated")
+  }
+  return status
+}
+
 const buildAvatarInitials = (username) => {
   const parts = String(username ?? "")
     .trim()
@@ -173,6 +471,14 @@ const buildAvatarInitials = (username) => {
     return parts[0].slice(0, 2).toUpperCase()
   }
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase()
+}
+
+const buildAvatarContent = (user) => {
+  if (user?.avatar_url) {
+    return `<img src="${escapeHtml(user.avatar_url)}" alt="" />`
+  }
+
+  return `<span>${escapeHtml(buildAvatarInitials(user?.username))}</span>`
 }
 
 const normalizeSession = (payload) => {
@@ -304,8 +610,8 @@ const setActiveView = (view, { replaceHistory = false } = {}) => {
   }
 
   state.activeView = view
-  elements.viewTitle.textContent = VIEW_TITLES[view]
-  elements.contextSummary.textContent = VIEW_CONTEXT[view]
+  elements.viewTitle.textContent = t(`view.${view}.title`)
+  elements.contextSummary.textContent = t(`view.${view}.context`)
   elements.main.classList.toggle(
     "is-compact-workspace",
     view === "sessions" || view === "vocabulary" || view === "settings",
@@ -337,8 +643,24 @@ const setActiveView = (view, { replaceHistory = false } = {}) => {
 
 const renderShell = () => {
   const user = state.profile?.user
-  elements.avatar.textContent = user ? buildAvatarInitials(user.username) : "--"
-  elements.userline.textContent = user ? `${user.username} / ${user.email}` : "Loading learner"
+  elements.avatar.innerHTML = buildAvatarContent(user)
+  elements.userline.textContent = user ? `${user.username} / ${user.email}` : t("shell.loadingLearner")
+  elements.newPracticeButton.textContent = t("shell.newPractice")
+  elements.signOutButton.textContent = t("shell.signOut")
+  elements.topbarVocabularyButton.textContent = t("shell.vocabulary")
+  elements.topbarStudyButton.textContent = t("shell.studySession")
+  for (const [view, labelKey] of [
+    ["dashboard", "nav.dashboard"],
+    ["sessions", "nav.sessions"],
+    ["quiz-history", "nav.quizHistory"],
+    ["vocabulary", "nav.vocabulary"],
+    ["settings", "nav.settings"],
+  ]) {
+    const item = elements.nav.querySelector(`[data-view="${view}"]`)
+    if (item) {
+      item.textContent = t(labelKey)
+    }
+  }
 }
 
 const buildStateMarkup = (message, { error = false } = {}) => {
@@ -376,11 +698,11 @@ const buildSkeletonMarkup = () => {
 const buildMetricGrid = () => {
   const stats = state.profile?.stats ?? {}
   const metrics = [
-    ["Total Sessions", stats.total_sessions ?? "--"],
-    ["Saved Transcripts", stats.saved_transcripts ?? "--"],
-    ["Average Accuracy", formatPercent(stats.average_accuracy)],
-    ["Total Quizzes", stats.total_quizzes ?? "--"],
-    ["Average Quiz Score", formatPercent(stats.average_quiz_score)],
+    [t("metric.totalSessions"), stats.total_sessions ?? "--"],
+    [t("metric.savedTranscripts"), stats.saved_transcripts ?? "--"],
+    [t("metric.averageAccuracy"), formatPercent(stats.average_accuracy)],
+    [t("metric.totalQuizzes"), stats.total_quizzes ?? "--"],
+    [t("metric.averageQuizScore"), formatPercent(stats.average_quiz_score)],
   ]
 
   return `
@@ -401,7 +723,7 @@ const buildMetricGrid = () => {
 
 const buildBars = ({ items, valueKey, labelKey, type = "", maxValue = 100 }) => {
   if (!Array.isArray(items) || items.length === 0) {
-    return `<p class="state-copy">Not enough data yet.</p>`
+    return `<p class="state-copy">${escapeHtml(t("dashboard.notEnoughQuiz"))}</p>`
   }
 
   const resolvedMax = Math.max(maxValue, ...items.map((item) => Number(item[valueKey] ?? 0)))
@@ -425,7 +747,7 @@ const buildBars = ({ items, valueKey, labelKey, type = "", maxValue = 100 }) => 
 }
 
 const buildSessionRail = ({
-  title = "Transcript Source",
+  title = t("common.transcriptSource"),
   summary = "",
   collapsible = false,
   collapsed = false,
@@ -436,10 +758,10 @@ const buildSessionRail = ({
         <div class="card-header">
           <div>
             <h3 class="card-title">${escapeHtml(title)}</h3>
-            <p class="panel-subtext">Loading transcript list.</p>
+            <p class="panel-subtext">${escapeHtml(t("common.loadingTranscriptList"))}</p>
           </div>
         </div>
-        ${buildLoadingMarkup("Loading transcripts.")}
+        ${buildLoadingMarkup(t("common.loadingTranscripts"))}
       </aside>
     `
   }
@@ -450,10 +772,10 @@ const buildSessionRail = ({
         <div class="card-header">
           <div>
             <h3 class="card-title">${escapeHtml(title)}</h3>
-            <p class="panel-subtext">Could not load sessions.</p>
+            <p class="panel-subtext">${escapeHtml(t("common.couldNotLoadSessions"))}</p>
           </div>
         </div>
-        ${buildStateMarkup(state.sessionsError || "Could not load sessions.", { error: true })}
+        ${buildStateMarkup(state.sessionsError || t("common.couldNotLoadSessions"), { error: true })}
       </aside>
     `
   }
@@ -464,7 +786,7 @@ const buildSessionRail = ({
       <div class="card-header">
         <div class="session-rail-heading">
           <h3 class="card-title">${escapeHtml(title)}</h3>
-          <p class="panel-subtext">${escapeHtml(summary || `${sessions.length} sessions available.`)}</p>
+          <p class="panel-subtext">${escapeHtml(summary || `${sessions.length} ${t("sessions.summary")}`)}</p>
         </div>
         ${
           collapsible
@@ -485,7 +807,7 @@ const buildSessionRail = ({
       <div class="session-list" aria-live="polite" aria-hidden="${collapsed}">
         ${
           sessions.length === 0
-            ? buildStateMarkup("No sessions match the current filters.")
+            ? buildStateMarkup(t("common.noSessionsMatch"))
             : sessions
                 .map((session) => {
                   const isSelected = session.sessionId === state.selectedSessionId
@@ -515,11 +837,11 @@ const buildSessionRail = ({
 const renderDashboardView = () => {
   const panel = elements.panels.dashboard
   if (state.profileState === "loading") {
-    panel.innerHTML = buildLoadingMarkup("Loading dashboard.")
+    panel.innerHTML = buildLoadingMarkup(t("dashboard.loading"))
     return
   }
   if (state.profileState === "error" || !state.profile) {
-    panel.innerHTML = buildStateMarkup(state.profileError || "Could not load dashboard.", {
+    panel.innerHTML = buildStateMarkup(state.profileError || t("dashboard.error"), {
       error: true,
     })
     return
@@ -527,9 +849,9 @@ const renderDashboardView = () => {
 
   const analytics = state.profile.analytics ?? {}
   const weakestSkill = analytics.weakest_skill ?? {
-    label: "Not enough quiz data",
+    label: t("dashboard.notEnoughQuiz"),
     missed_count: 0,
-    summary: "Submit quizzes to identify your focus area.",
+    summary: t("dashboard.focusSummary"),
   }
   const recentSessions = state.sessions.slice(0, 4)
 
@@ -538,8 +860,8 @@ const renderDashboardView = () => {
     <div class="dashboard-grid">
       <article class="content-card">
         <div>
-          <h3 class="card-title">Accuracy Trend</h3>
-          <p class="panel-subtext">Daily listening accuracy from saved sessions.</p>
+          <h3 class="card-title">${escapeHtml(t("dashboard.accuracyTrend"))}</h3>
+          <p class="panel-subtext">${escapeHtml(t("dashboard.accuracyCopy"))}</p>
         </div>
         ${buildBars({
           items: analytics.accuracy_by_day ?? [],
@@ -550,20 +872,20 @@ const renderDashboardView = () => {
       </article>
       <article class="content-card">
         <div>
-          <h3 class="card-title">Focus Area</h3>
-          <p class="panel-subtext">Based on wrong quiz answers.</p>
+          <h3 class="card-title">${escapeHtml(t("dashboard.focusArea"))}</h3>
+          <p class="panel-subtext">${escapeHtml(t("dashboard.focusCopy"))}</p>
         </div>
         <div class="timeline-card">
-          <span class="section-label">Weakest Skill</span>
+          <span class="section-label">${escapeHtml(t("dashboard.weakestSkill"))}</span>
           <h3 class="card-title">${escapeHtml(weakestSkill.label)}</h3>
           <p class="state-copy">${escapeHtml(weakestSkill.summary)}</p>
-          <span class="badge is-orange">${escapeHtml(weakestSkill.missed_count)} misses</span>
+          <span class="badge is-orange">${escapeHtml(weakestSkill.missed_count)} ${escapeHtml(t("dashboard.misses"))}</span>
         </div>
       </article>
       <article class="content-card">
         <div>
-          <h3 class="card-title">Quiz Score</h3>
-          <p class="panel-subtext">Daily average from saved attempts.</p>
+          <h3 class="card-title">${escapeHtml(t("dashboard.quizScore"))}</h3>
+          <p class="panel-subtext">${escapeHtml(t("dashboard.quizScoreCopy"))}</p>
         </div>
         ${buildBars({
           items: analytics.quiz_score_by_day ?? [],
@@ -575,13 +897,13 @@ const renderDashboardView = () => {
       </article>
       <article class="content-card">
         <div>
-          <h3 class="card-title">Continue Learning</h3>
-          <p class="panel-subtext">Open one flow, then move between transcript, quiz, attempts, and vocabulary.</p>
+          <h3 class="card-title">${escapeHtml(t("dashboard.continueLearning"))}</h3>
+          <p class="panel-subtext">${escapeHtml(t("dashboard.continueCopy"))}</p>
         </div>
         <div class="list-grid">
           ${
             recentSessions.length === 0
-              ? `<p class="state-copy">No sessions yet.</p>`
+              ? `<p class="state-copy">${escapeHtml(t("dashboard.noSessionsYet"))}</p>`
               : recentSessions
                   .map((session) => {
                     return `
@@ -591,12 +913,12 @@ const renderDashboardView = () => {
                           <div class="item-meta">
                             <span>${escapeHtml(formatDate(session.completedAt))}</span>
                             <span>${escapeHtml(formatPercent(session.accuracyScore))}</span>
-                            <span>${escapeHtml(session.quizStatus)}</span>
+                            <span>${escapeHtml(getQuizStatusLabel(session.quizStatus))}</span>
                           </div>
                         </div>
                         <div class="row-actions">
-                          <button class="button-ghost" type="button" data-open-session="${session.sessionId}">Study</button>
-                          <button class="button-ghost" type="button" data-open-vocabulary="${session.sessionId}">Words</button>
+                          <button class="button-ghost" type="button" data-open-session="${session.sessionId}">${escapeHtml(t("common.study"))}</button>
+                          <button class="button-ghost" type="button" data-open-vocabulary="${session.sessionId}">${escapeHtml(t("common.words"))}</button>
                         </div>
                       </div>
                     `
@@ -616,8 +938,8 @@ const buildStudyBoard = () => {
       <section class="study-board">
         <div class="study-content">
           <div class="empty-state">
-            <span class="eyebrow">Study Workspace</span>
-            <p class="state-copy">Select a session to review transcript, generate a quiz, and inspect saved attempts.</p>
+            <span class="eyebrow">${escapeHtml(t("sessions.workspace"))}</span>
+            <p class="state-copy">${escapeHtml(t("sessions.emptyCopy"))}</p>
           </div>
         </div>
       </section>
@@ -633,21 +955,21 @@ const buildStudyBoard = () => {
       <div class="study-header">
         <div class="study-header-main">
           <div>
-            <span class="eyebrow">Selected Session</span>
+            <span class="eyebrow">${escapeHtml(t("sessions.selected"))}</span>
             <h3 class="study-title">${escapeHtml(selectedSession.videoTitle)}</h3>
             <div class="item-meta">
               <span>YouTube / ${escapeHtml(selectedSession.videoId)}</span>
               <span>${escapeHtml(formatDate(selectedSession.completedAt))}</span>
-              <span>${escapeHtml(String(selectedSession.wordCount))} words</span>
+              <span>${escapeHtml(formatWordCount(selectedSession.wordCount))}</span>
               <span class="badge is-blue">${escapeHtml(formatPercent(selectedSession.accuracyScore))}</span>
-              <span class="badge ${selectedSession.quizStatus === "Quiz Generated" ? "is-green" : ""}">${escapeHtml(selectedSession.quizStatus)}</span>
+              <span class="badge ${selectedSession.quizStatus === "Quiz Generated" ? "is-green" : ""}">${escapeHtml(getQuizStatusLabel(selectedSession.quizStatus))}</span>
             </div>
           </div>
         </div>
-        <div class="study-tabs" role="tablist" aria-label="Session workspace">
+        <div class="study-tabs" role="tablist" aria-label="${escapeHtml(t("sessions.workspaceAria"))}">
           ${["quiz", "attempts"]
             .map((tab) => {
-              const label = tab === "quiz" ? "Reading Quiz" : "Attempts"
+              const label = tab === "quiz" ? t("sessions.readingQuiz") : t("sessions.attempts")
               return `
                 <button
                   type="button"
@@ -666,7 +988,7 @@ const buildStudyBoard = () => {
       <div class="study-content">
         ${
           isLoadingDetail
-            ? buildLoadingMarkup("Loading selected transcript.")
+            ? buildLoadingMarkup(t("sessions.loadingSelected"))
             : detailError
               ? buildStateMarkup(detailError, { error: true })
               : state.activeStudyTab === "quiz"
@@ -681,11 +1003,11 @@ const buildStudyBoard = () => {
 const buildDifficultySelect = (id) => {
   return `
     <label class="control-field" for="${id}">
-      <span class="control-label">Difficulty</span>
+      <span class="control-label">${escapeHtml(t("control.difficulty"))}</span>
       <select id="${id}" class="control-select" data-setting-select="defaultDifficulty">
-        <option value="easy" ${state.settings.defaultDifficulty === "easy" ? "selected" : ""}>Easy</option>
-        <option value="medium" ${state.settings.defaultDifficulty === "medium" ? "selected" : ""}>Medium</option>
-        <option value="hard" ${state.settings.defaultDifficulty === "hard" ? "selected" : ""}>Hard</option>
+        <option value="easy" ${state.settings.defaultDifficulty === "easy" ? "selected" : ""}>${escapeHtml(t("difficulty.easy"))}</option>
+        <option value="medium" ${state.settings.defaultDifficulty === "medium" ? "selected" : ""}>${escapeHtml(t("difficulty.medium"))}</option>
+        <option value="hard" ${state.settings.defaultDifficulty === "hard" ? "selected" : ""}>${escapeHtml(t("difficulty.hard"))}</option>
       </select>
     </label>
   `
@@ -694,11 +1016,11 @@ const buildDifficultySelect = (id) => {
 const buildQuestionTypeSelect = (id) => {
   return `
     <label class="control-field" for="${id}">
-      <span class="control-label">Question Type</span>
+      <span class="control-label">${escapeHtml(t("control.questionType"))}</span>
       <select id="${id}" class="control-select" data-setting-select="defaultQuestionType">
         ${QUESTION_TYPES
-          .map(([value, label]) => {
-            return `<option value="${value}" ${state.settings.defaultQuestionType === value ? "selected" : ""}>${label}</option>`
+          .map(([value, labelKey]) => {
+            return `<option value="${value}" ${state.settings.defaultQuestionType === value ? "selected" : ""}>${escapeHtml(t(labelKey))}</option>`
           })
           .join("")}
       </select>
@@ -715,6 +1037,22 @@ const buildToggleSetting = ({ id, label, description, checked }) => {
       </span>
       <input id="${id}" type="checkbox" data-setting-toggle="${id}" ${checked ? "checked" : ""} />
     </label>
+  `
+}
+
+const buildNoticeMarkup = (message, tone = "success") => {
+  if (!message) {
+    return ""
+  }
+
+  return `<p class="settings-feedback ${tone === "error" ? "is-error" : "is-success"}">${escapeHtml(message)}</p>`
+}
+
+const buildLanguageOptions = (selectedLanguage) => {
+  const language = normalizeLanguage(selectedLanguage)
+  return `
+    <option value="en" ${language === "en" ? "selected" : ""}>English</option>
+    <option value="vi" ${language === "vi" ? "selected" : ""}>Tiếng Việt</option>
   `
 }
 
@@ -971,25 +1309,25 @@ const renderSessionsView = () => {
   panel.innerHTML = `
     <div class="toolbar">
       <label class="control-field">
-        <span class="control-label">Search</span>
-        <input id="dashboard-session-search" class="control-input" type="search" value="${escapeHtml(state.sessionSearch)}" placeholder="Title or video ID" />
+        <span class="control-label">${escapeHtml(t("common.search"))}</span>
+        <input id="dashboard-session-search" class="control-input" type="search" value="${escapeHtml(state.sessionSearch)}" placeholder="${escapeHtml(t("common.titleOrVideo"))}" />
       </label>
       <label class="control-field">
-        <span class="control-label">Status</span>
+        <span class="control-label">${escapeHtml(t("common.status"))}</span>
         <select id="dashboard-session-filter" class="control-select">
-          <option value="all" ${state.sessionStatusFilter === "all" ? "selected" : ""}>All</option>
-          <option value="Completed" ${state.sessionStatusFilter === "Completed" ? "selected" : ""}>Completed</option>
-          <option value="Quiz Ready" ${state.sessionStatusFilter === "Quiz Ready" ? "selected" : ""}>Quiz Ready</option>
-          <option value="Quiz Generated" ${state.sessionStatusFilter === "Quiz Generated" ? "selected" : ""}>Quiz Generated</option>
+          <option value="all" ${state.sessionStatusFilter === "all" ? "selected" : ""}>${escapeHtml(t("status.all"))}</option>
+          <option value="Completed" ${state.sessionStatusFilter === "Completed" ? "selected" : ""}>${escapeHtml(t("status.completed"))}</option>
+          <option value="Quiz Ready" ${state.sessionStatusFilter === "Quiz Ready" ? "selected" : ""}>${escapeHtml(t("status.quizReady"))}</option>
+          <option value="Quiz Generated" ${state.sessionStatusFilter === "Quiz Generated" ? "selected" : ""}>${escapeHtml(t("status.quizGenerated"))}</option>
         </select>
       </label>
       <label class="control-field">
-        <span class="control-label">Date</span>
+        <span class="control-label">${escapeHtml(t("common.date"))}</span>
         <input id="dashboard-session-date" class="control-input" type="date" value="${escapeHtml(state.sessionDateFilter)}" />
       </label>
     </div>
     <div class="study-layout">
-      ${buildSessionRail({ summary: `${getFilteredSessions().length} sessions in this workspace.` })}
+      ${buildSessionRail({ summary: `${getFilteredSessions().length} ${t("sessions.summary")}` })}
       ${buildStudyBoard()}
     </div>
   `
@@ -998,15 +1336,15 @@ const renderSessionsView = () => {
 const renderQuizHistoryView = () => {
   const panel = elements.panels["quiz-history"]
   if (state.sessionsState === "loading") {
-    panel.innerHTML = buildLoadingMarkup("Loading sessions first.")
+    panel.innerHTML = buildLoadingMarkup(t("quizHistory.loadingSessions"))
     return
   }
   if (state.quizHistoryState === "loading") {
-    panel.innerHTML = buildLoadingMarkup("Loading quiz history.")
+    panel.innerHTML = buildLoadingMarkup(t("quizHistory.loading"))
     return
   }
   if (state.quizHistoryState === "error") {
-    panel.innerHTML = buildStateMarkup(state.quizHistoryError || "Could not load quiz history.", {
+    panel.innerHTML = buildStateMarkup(state.quizHistoryError || t("quizHistory.error"), {
       error: true,
     })
     return
@@ -1014,15 +1352,15 @@ const renderQuizHistoryView = () => {
   if (state.quizHistoryState === "empty") {
     panel.innerHTML = `
       <div class="state-block">
-        <p class="state-copy">Open this view to load saved quiz attempts.</p>
-        <button class="button-primary" type="button" data-load-quiz-history>Load History</button>
+        <p class="state-copy">${escapeHtml(t("quizHistory.openToLoad"))}</p>
+        <button class="button-primary" type="button" data-load-quiz-history>${escapeHtml(t("quizHistory.load"))}</button>
       </div>
     `
     return
   }
 
   if (state.quizAttempts.length === 0) {
-    panel.innerHTML = buildStateMarkup("No submitted quiz attempts yet.")
+    panel.innerHTML = buildStateMarkup(t("quizHistory.noAttempts"))
     return
   }
 
@@ -1286,19 +1624,19 @@ const buildMiniQuizPanel = () => {
 const renderVocabularyView = () => {
   const panel = elements.panels.vocabulary
   if (state.sessionsState === "loading") {
-    panel.innerHTML = buildLoadingMarkup("Loading transcripts.")
+    panel.innerHTML = buildLoadingMarkup(t("vocab.loading"))
     return
   }
   if (state.sessions.length === 0) {
-    panel.innerHTML = buildStateMarkup("No transcripts yet. Complete a session before building vocabulary.")
+    panel.innerHTML = buildStateMarkup(t("vocab.empty"))
     return
   }
 
   panel.innerHTML = `
     <div class="vocab-workspace ${state.isVocabularySourceCollapsed ? "is-source-collapsed" : ""}">
       ${buildSessionRail({
-        title: "Vocabulary Source",
-        summary: "Pick the transcript that owns the word bank.",
+        title: t("vocab.source"),
+        summary: t("vocab.sourceCopy"),
         collapsible: true,
         collapsed: state.isVocabularySourceCollapsed,
       })}
@@ -1310,45 +1648,105 @@ const renderVocabularyView = () => {
 
 const renderSettingsView = () => {
   const user = state.profile?.user
+  const selectedLanguage = normalizeLanguage(user?.preferred_language ?? state.settings.language)
   elements.panels.settings.innerHTML = `
     <div class="settings-page">
       <section class="settings-hero">
         <div>
-          <span class="eyebrow">Preferences</span>
-          <h3>Settings</h3>
-          <p>Control quiz defaults, vocabulary behavior, and interface comfort for the learning workspace.</p>
+          <span class="eyebrow">${escapeHtml(t("settings.eyebrow"))}</span>
+          <h3>${escapeHtml(t("settings.title"))}</h3>
+          <p>${escapeHtml(t("settings.copy"))}</p>
         </div>
-        <button type="button" class="button-ghost" data-reset-local-settings>Reset Local Settings</button>
+        <button type="button" class="button-ghost" data-reset-local-settings>${escapeHtml(t("settings.reset"))}</button>
       </section>
 
       <div class="settings-grid">
-        <section class="settings-card">
+        <section class="settings-card settings-account-card">
           <div class="settings-card-header">
-            <span class="eyebrow">Account</span>
-            <h3 class="card-title">Learner Profile</h3>
+            <span class="eyebrow">${escapeHtml(t("settings.accountEyebrow"))}</span>
+            <h3 class="card-title">${escapeHtml(t("settings.accountTitle"))}</h3>
           </div>
-          <div class="settings-list">
-            <div class="settings-row">
-              <div>
-                <strong>${escapeHtml(user?.username ?? "Learner")}</strong>
-                <p class="panel-subtext">${escapeHtml(user?.email ?? "No email loaded")}</p>
+          <form class="settings-form" data-account-settings-form>
+            <div class="settings-avatar-row">
+              <div id="settings-avatar-preview" class="settings-avatar-preview" aria-hidden="true">
+                ${buildAvatarContent(user)}
               </div>
-              <span class="badge is-blue">Signed in</span>
-            </div>
-            <div class="settings-row">
               <div>
-                <strong>Session</strong>
-                <p class="panel-subtext">Sign out from this browser and return to the login page.</p>
+                <input id="settings-avatar-url" name="avatar_url" type="hidden" value="${escapeHtml(user?.avatar_url ?? "")}" />
+                <input id="settings-avatar-file" class="sr-only" type="file" accept="image/*" />
+                <div class="button-row">
+                  <label class="button-ghost" for="settings-avatar-file">${escapeHtml(t("settings.chooseAvatar"))}</label>
+                  <button type="button" class="button-text" data-remove-avatar>${escapeHtml(t("settings.removeAvatar"))}</button>
+                </div>
+                <p class="panel-subtext">${escapeHtml(t("settings.avatarHint"))}</p>
               </div>
-              <button type="button" class="button-ghost" data-settings-sign-out>Sign out</button>
             </div>
+
+            <div class="settings-form-grid">
+              <label class="control-field" for="settings-username">
+                <span class="control-label">${escapeHtml(t("settings.username"))}</span>
+                <input id="settings-username" name="username" class="control-input" type="text" value="${escapeHtml(user?.username ?? "")}" maxlength="100" required />
+              </label>
+              <label class="control-field" for="settings-email">
+                <span class="control-label">${escapeHtml(t("settings.email"))}</span>
+                <input id="settings-email" class="control-input" type="email" value="${escapeHtml(user?.email ?? "")}" disabled />
+              </label>
+              <label class="control-field" for="settings-language">
+                <span class="control-label">${escapeHtml(t("settings.preferredLanguage"))}</span>
+                <select id="settings-language" name="preferred_language" class="control-select">
+                  ${buildLanguageOptions(selectedLanguage)}
+                </select>
+              </label>
+              <div class="settings-inline-note">
+                <span class="badge is-blue">${escapeHtml(t("settings.signedIn"))}</span>
+                <p class="panel-subtext">${escapeHtml(t("settings.emailHelp"))}</p>
+              </div>
+            </div>
+            ${buildNoticeMarkup(state.accountNotice, state.accountNoticeTone)}
+            <div class="settings-actions">
+              <button type="submit" class="button-primary">${escapeHtml(t("settings.saveProfile"))}</button>
+            </div>
+          </form>
+          <div class="settings-row">
+            <div>
+              <strong>${escapeHtml(t("settings.sessionTitle"))}</strong>
+              <p class="panel-subtext">${escapeHtml(t("settings.sessionCopy"))}</p>
+            </div>
+            <button type="button" class="button-ghost" data-settings-sign-out>${escapeHtml(t("shell.signOut"))}</button>
           </div>
         </section>
 
         <section class="settings-card">
           <div class="settings-card-header">
-            <span class="eyebrow">Quiz</span>
-            <h3 class="card-title">Question Defaults</h3>
+            <span class="eyebrow">${escapeHtml(t("settings.passwordEyebrow"))}</span>
+            <h3 class="card-title">${escapeHtml(t("settings.passwordTitle"))}</h3>
+          </div>
+          <form class="settings-form" data-password-settings-form>
+            <div class="settings-list">
+              <label class="control-field" for="settings-current-password">
+                <span class="control-label">${escapeHtml(t("settings.currentPassword"))}</span>
+                <input id="settings-current-password" name="current_password" class="control-input" type="password" autocomplete="current-password" required />
+              </label>
+              <label class="control-field" for="settings-new-password">
+                <span class="control-label">${escapeHtml(t("settings.newPassword"))}</span>
+                <input id="settings-new-password" name="new_password" class="control-input" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+              <label class="control-field" for="settings-confirm-password">
+                <span class="control-label">${escapeHtml(t("settings.confirmPassword"))}</span>
+                <input id="settings-confirm-password" name="confirm_password" class="control-input" type="password" autocomplete="new-password" minlength="8" required />
+              </label>
+            </div>
+            ${buildNoticeMarkup(state.passwordNotice, state.passwordNoticeTone)}
+            <div class="settings-actions">
+              <button type="submit" class="button-primary">${escapeHtml(t("settings.updatePassword"))}</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <span class="eyebrow">${escapeHtml(t("settings.quizEyebrow"))}</span>
+            <h3 class="card-title">${escapeHtml(t("settings.quizTitle"))}</h3>
           </div>
           <div class="settings-form-grid">
             ${buildDifficultySelect("settings-difficulty")}
@@ -1358,20 +1756,20 @@ const renderSettingsView = () => {
 
         <section class="settings-card">
           <div class="settings-card-header">
-            <span class="eyebrow">Vocabulary</span>
-            <h3 class="card-title">Practice Behavior</h3>
+            <span class="eyebrow">${escapeHtml(t("settings.vocabEyebrow"))}</span>
+            <h3 class="card-title">${escapeHtml(t("settings.vocabTitle"))}</h3>
           </div>
           <div class="settings-list">
             ${buildToggleSetting({
               id: "autoMaskVocabulary",
-              label: "Hide word bank during Vocabulary Check",
-              description: "Automatically blur the vocabulary bank when a mini quiz starts.",
+              label: t("settings.autoMaskLabel"),
+              description: t("settings.autoMaskDescription"),
               checked: state.settings.autoMaskVocabulary,
             })}
             ${buildToggleSetting({
               id: "collapseVocabularySource",
-              label: "Open Vocabulary with source collapsed",
-              description: "Give Vocabulary Bank more room by default.",
+              label: t("settings.collapseSourceLabel"),
+              description: t("settings.collapseSourceDescription"),
               checked: state.settings.collapseVocabularySource,
             })}
           </div>
@@ -1379,18 +1777,18 @@ const renderSettingsView = () => {
 
         <section class="settings-card">
           <div class="settings-card-header">
-            <span class="eyebrow">Interface</span>
-            <h3 class="card-title">Comfort</h3>
+            <span class="eyebrow">${escapeHtml(t("settings.interfaceEyebrow"))}</span>
+            <h3 class="card-title">${escapeHtml(t("settings.interfaceTitle"))}</h3>
           </div>
           <div class="settings-list">
             ${buildToggleSetting({
               id: "reduceMotion",
-              label: "Reduce motion",
-              description: "Shorten animation and transition effects across the dashboard.",
+              label: t("settings.reduceMotionLabel"),
+              description: t("settings.reduceMotionDescription"),
               checked: state.settings.reduceMotion,
             })}
             <div>
-              <p class="settings-note">Settings are stored locally in this browser.</p>
+              <p class="settings-note">${escapeHtml(t("settings.localNote"))}</p>
             </div>
           </div>
         </section>
@@ -1420,6 +1818,8 @@ const renderActiveView = () => {
 
 const renderAll = () => {
   renderShell()
+  elements.viewTitle.textContent = t(`view.${state.activeView}.title`)
+  elements.contextSummary.textContent = t(`view.${state.activeView}.context`)
   renderDashboardView()
   renderSessionsView()
   renderQuizHistoryView()
@@ -1470,6 +1870,13 @@ const loadProfile = async () => {
       throw new Error(await extractErrorMessage(response))
     }
     state.profile = await response.json()
+    state.settings.language = normalizeLanguage(
+      window.localStorage.getItem("dashboard_language") ??
+        state.profile.user?.preferred_language ??
+        state.settings.language,
+    )
+    window.localStorage.setItem("dashboard_language", state.settings.language)
+    applyLanguage()
     state.profileState = "ready"
   } catch (error) {
     state.profileState = "error"
@@ -1927,12 +2334,131 @@ const persistToggleSetting = (setting, checked) => {
   }
 }
 
+const persistLanguage = (language) => {
+  state.settings.language = normalizeLanguage(language)
+  window.localStorage.setItem("dashboard_language", state.settings.language)
+  applyLanguage()
+}
+
+const readFileAsDataUrl = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")))
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Could not read file.")))
+    reader.readAsDataURL(file)
+  })
+}
+
+const handleAvatarFileInput = async (input) => {
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+  if (!file.type.startsWith("image/")) {
+    state.accountNotice = t("settings.avatarInvalid")
+    state.accountNoticeTone = "error"
+    renderSettingsView()
+    return
+  }
+  if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
+    state.accountNotice = t("settings.avatarTooLarge")
+    state.accountNoticeTone = "error"
+    renderSettingsView()
+    return
+  }
+
+  try {
+    const dataUrl = await readFileAsDataUrl(file)
+    const avatarInput = document.getElementById("settings-avatar-url")
+    const preview = document.getElementById("settings-avatar-preview")
+    if (avatarInput instanceof HTMLInputElement) {
+      avatarInput.value = dataUrl
+    }
+    if (preview) {
+      preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="" />`
+    }
+    state.accountNotice = ""
+  } catch (error) {
+    state.accountNotice = error instanceof Error ? error.message : t("settings.avatarInvalid")
+    state.accountNoticeTone = "error"
+    renderSettingsView()
+  }
+}
+
+const saveAccountSettings = async (form) => {
+  const formData = new FormData(form)
+  const username = String(formData.get("username") ?? "").trim()
+  const avatarUrl = String(formData.get("avatar_url") ?? "").trim()
+  const preferredLanguage = normalizeLanguage(String(formData.get("preferred_language") ?? state.settings.language))
+
+  state.accountNotice = ""
+  try {
+    const response = await apiFetch("/api/v1/profile/account", {
+      method: "PATCH",
+      body: JSON.stringify({
+        username,
+        avatar_url: avatarUrl || null,
+        preferred_language: preferredLanguage,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response))
+    }
+    state.profile.user = await response.json()
+    persistLanguage(state.profile.user.preferred_language)
+    state.accountNotice = t("settings.profileSaved")
+    state.accountNoticeTone = "success"
+  } catch (error) {
+    state.accountNotice = error instanceof Error ? error.message : "Could not update profile."
+    state.accountNoticeTone = "error"
+  }
+
+  renderAll()
+}
+
+const changeAccountPassword = async (form) => {
+  const formData = new FormData(form)
+  const currentPassword = String(formData.get("current_password") ?? "")
+  const newPassword = String(formData.get("new_password") ?? "")
+  const confirmPassword = String(formData.get("confirm_password") ?? "")
+
+  state.passwordNotice = ""
+  if (newPassword !== confirmPassword) {
+    state.passwordNotice = t("settings.passwordMismatch")
+    state.passwordNoticeTone = "error"
+    renderSettingsView()
+    return
+  }
+
+  try {
+    const response = await apiFetch("/api/v1/profile/password", {
+      method: "PATCH",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response))
+    }
+    form.reset()
+    state.passwordNotice = t("settings.passwordSaved")
+    state.passwordNoticeTone = "success"
+  } catch (error) {
+    state.passwordNotice = error instanceof Error ? error.message : "Could not update password."
+    state.passwordNoticeTone = "error"
+  }
+
+  renderSettingsView()
+}
+
 const resetLocalSettings = () => {
   state.settings.defaultDifficulty = "medium"
   state.settings.defaultQuestionType = "mixed"
   state.settings.autoMaskVocabulary = true
   state.settings.collapseVocabularySource = false
   state.settings.reduceMotion = false
+  state.settings.language = normalizeLanguage(state.profile?.user?.preferred_language ?? "en")
   state.isVocabularySourceCollapsed = false
   for (const key of [
     "dashboard_default_difficulty",
@@ -1940,10 +2466,13 @@ const resetLocalSettings = () => {
     "dashboard_auto_mask_vocabulary",
     "dashboard_collapse_vocabulary_source",
     "dashboard_reduce_motion",
+    "dashboard_language",
   ]) {
     window.localStorage.removeItem(key)
   }
+  applyLanguage()
   applyInterfaceSettings()
+  applyLanguage()
 }
 
 const bindEvents = () => {
@@ -2000,6 +2529,24 @@ const bindEvents = () => {
   })
 
   for (const panel of Object.values(elements.panels)) {
+    panel.addEventListener("submit", (event) => {
+      const target = event.target
+      if (!(target instanceof HTMLFormElement)) {
+        return
+      }
+
+      if (target.matches("[data-account-settings-form]")) {
+        event.preventDefault()
+        void saveAccountSettings(target)
+        return
+      }
+
+      if (target.matches("[data-password-settings-form]")) {
+        event.preventDefault()
+        void changeAccountPassword(target)
+      }
+    })
+
     panel.addEventListener("input", (event) => {
       const target = event.target
       if (target instanceof HTMLInputElement && target.id === "dashboard-session-search") {
@@ -2018,6 +2565,10 @@ const bindEvents = () => {
 
     panel.addEventListener("change", (event) => {
       const target = event.target
+      if (target instanceof HTMLInputElement && target.id === "settings-avatar-file") {
+        void handleAvatarFileInput(target)
+        return
+      }
       if (target instanceof HTMLSelectElement && target.id === "dashboard-session-filter") {
         state.sessionStatusFilter = target.value
         renderActiveView()
@@ -2194,6 +2745,22 @@ const bindEvents = () => {
         event.preventDefault()
         resetLocalSettings()
         renderAll()
+        return
+      }
+
+      if (target.closest("[data-remove-avatar]")) {
+        event.preventDefault()
+        const avatarInput = document.getElementById("settings-avatar-url")
+        const preview = document.getElementById("settings-avatar-preview")
+        if (avatarInput instanceof HTMLInputElement) {
+          avatarInput.value = ""
+        }
+        if (preview) {
+          preview.innerHTML = buildAvatarContent({
+            username: state.profile?.user?.username ?? "",
+            avatar_url: null,
+          })
+        }
       }
     })
 

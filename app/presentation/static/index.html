@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shadowing Studio</title>
-    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/styles.css?v=20260506d" />
   </head>
   <body class="study-page">
     <header class="study-topbar">
@@ -13,14 +13,37 @@
           <p class="brand-title">Shadowing Studio</p>
           <p id="topbar-session-label" class="topbar-session-label" hidden>Practice session</p>
         </div>
-        <a
-          class="profile-button"
-          href="/dashboard"
-          aria-label="Open dashboard"
-          title="Dashboard"
-        >
-          Dashboard
-        </a>
+        <div class="topbar-actions">
+          <div class="language-switch" role="group" aria-label="Interface language">
+            <button
+              id="language-en-button"
+              type="button"
+              class="language-switch-option is-active"
+              data-language-choice="en"
+              aria-pressed="true"
+            >
+              EN
+            </button>
+            <button
+              id="language-vi-button"
+              type="button"
+              class="language-switch-option"
+              data-language-choice="vi"
+              aria-pressed="false"
+            >
+              VI
+            </button>
+          </div>
+          <a
+            id="profile-button"
+            class="profile-button"
+            href="/dashboard"
+            aria-label="Open dashboard"
+            title="Dashboard"
+          >
+            Dashboard
+          </a>
+        </div>
       </div>
     </header>
 
@@ -200,6 +223,6 @@
       </section>
     </main>
 
-    <script type="module" src="/static/js/app.js"></script>
+    <script type="module" src="/static/js/app.js?v=20260506d"></script>
   </body>
 </html>

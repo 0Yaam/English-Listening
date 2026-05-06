@@ -157,6 +157,123 @@ def test_get_profile_returns_current_user_info(tmp_path: Path, monkeypatch) -> N
     payload = response.json()
     assert payload["user"]["username"] == "linhtran"
     assert payload["user"]["email"] == "linh@example.com"
+    assert payload["user"]["preferred_language"] == "en"
+    app.dependency_overrides.clear()
+
+
+def test_update_profile_account_changes_username_avatar_and_language(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    client = _build_test_client(tmp_path / "profile-account-update.db", monkeypatch)
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh@example.com",
+    )
+
+    response = client.patch(
+        "/api/v1/profile/account",
+        json={
+            "username": "Linh Nguyen",
+            "avatar_url": "data:image/svg+xml;base64,PHN2Zy8+",
+            "preferred_language": "vi",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["username"] == "Linh Nguyen"
+    assert payload["avatar_url"] == "data:image/svg+xml;base64,PHN2Zy8+"
+    assert payload["preferred_language"] == "vi"
+
+    profile_response = client.get(
+        "/api/v1/profile",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert profile_response.status_code == 200
+    assert profile_response.json()["user"]["username"] == "Linh Nguyen"
+    assert profile_response.json()["user"]["preferred_language"] == "vi"
+    app.dependency_overrides.clear()
+
+
+def test_update_profile_account_rejects_duplicate_username(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    client = _build_test_client(tmp_path / "profile-account-duplicate.db", monkeypatch)
+    token_a = _register_and_get_token(
+        client,
+        username="usera",
+        email="usera@example.com",
+    )
+    _register_and_get_token(
+        client,
+        username="userb",
+        email="userb@example.com",
+    )
+
+    response = client.patch(
+        "/api/v1/profile/account",
+        json={
+            "username": "userb",
+            "avatar_url": None,
+            "preferred_language": "en",
+        },
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+
+    assert response.status_code == 400
+    assert "username is already taken" in response.json()["message"]
+    app.dependency_overrides.clear()
+
+
+def test_change_password_requires_current_password_and_updates_login(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    client = _build_test_client(tmp_path / "profile-password-change.db", monkeypatch)
+    token = _register_and_get_token(
+        client,
+        username="linhtran",
+        email="linh@example.com",
+    )
+
+    wrong_response = client.patch(
+        "/api/v1/profile/password",
+        json={
+            "current_password": "wrongpass123",
+            "new_password": "newpass123",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert wrong_response.status_code == 400
+    assert "current password is incorrect" in wrong_response.json()["message"]
+
+    response = client.patch(
+        "/api/v1/profile/password",
+        json={
+            "current_password": "strongpass123",
+            "new_password": "newpass123",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Password updated."
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "linh@example.com",
+            "password": "newpass123",
+        },
+    )
+
+    assert login_response.status_code == 200
     app.dependency_overrides.clear()
 
 

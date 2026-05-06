@@ -12,3 +12,5 @@ class User:
     password_hash: str
     created_at: datetime
     updated_at: datetime | None
+    avatar_url: str | None = None
+    preferred_language: str = "en"

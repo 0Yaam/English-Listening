@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
+from sqlalchemy import Text
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -26,6 +27,8 @@ class UserORM(Base):
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preferred_language: Mapped[str] = mapped_column(String(10), default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
