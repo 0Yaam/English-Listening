@@ -109,6 +109,29 @@ class VocabularyRepository:
         self._session.refresh(item)
         return self._to_domain(item)
 
+    def unsave_item(
+        self,
+        *,
+        user_id: int,
+        session_id: int,
+        term: str,
+    ) -> VocabularyItem | None:
+        normalized_term = self._normalize_term(term)
+        statement = select(VocabularyItemORM).where(
+            VocabularyItemORM.user_id == user_id,
+            VocabularyItemORM.session_id == session_id,
+            VocabularyItemORM.term_normalized == normalized_term,
+        )
+        item = self._session.scalar(statement)
+        if item is None:
+            return None
+
+        item.is_saved = False
+        item.updated_at = utcnow()
+        self._session.commit()
+        self._session.refresh(item)
+        return self._to_domain(item)
+
     @staticmethod
     def _normalize_term(term: str) -> str:
         return term.strip().lower()

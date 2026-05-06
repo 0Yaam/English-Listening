@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -329,6 +330,24 @@ def test_session_vocabulary_can_be_extracted_and_saved(tmp_path: Path) -> None:
     refreshed_items = refreshed_response.json()["items"]
     assert refreshed_items[0]["term"] == first_item["term"]
     assert refreshed_items[0]["is_saved"] is True
+
+    unsave_response = client.delete(
+        f"/api/v1/sessions/{session_id}/vocabulary/{quote(first_item['term'])}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert unsave_response.status_code == 200
+    unsaved_payload = unsave_response.json()
+    assert unsaved_payload["term"] == first_item["term"]
+    assert unsaved_payload["is_saved"] is False
+
+    refreshed_unsaved_response = client.get(
+        f"/api/v1/sessions/{session_id}/vocabulary",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    refreshed_unsaved_items = refreshed_unsaved_response.json()["items"]
+    assert refreshed_unsaved_items[0]["term"] == first_item["term"]
+    assert refreshed_unsaved_items[0]["is_saved"] is False
     app.dependency_overrides.clear()
 
 

@@ -19,6 +19,10 @@ class VocabularyTranscriptNotFoundError(Exception):
     """Raised when the requested session has no saved transcript."""
 
 
+class VocabularyItemNotFoundError(Exception):
+    """Raised when a saved vocabulary item cannot be found."""
+
+
 class VocabularyService:
     MAX_CANDIDATES = 12
     _WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]{3,}")
@@ -178,6 +182,23 @@ class VocabularyService:
             definition=definition,
             difficulty=difficulty,
         )
+
+    def unsave_vocabulary_item(
+        self,
+        *,
+        session_id: int,
+        user_id: int,
+        term: str,
+    ) -> VocabularyItem:
+        self._get_owned_transcript(session_id=session_id, user_id=user_id)
+        item = self._vocabulary_repository.unsave_item(
+            user_id=user_id,
+            session_id=session_id,
+            term=term,
+        )
+        if item is None:
+            raise VocabularyItemNotFoundError
+        return item
 
     def build_vocabulary_quiz(
         self,

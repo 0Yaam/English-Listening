@@ -18,6 +18,7 @@ from app.business.services.ai_quiz_generation_service import TranscriptNotFoundE
 from app.business.services.ai_quiz_generation_service import TranscriptTooShortError
 from app.business.services.session_history_service import SessionHistoryService
 from app.business.services.vocabulary_service import VocabularyService
+from app.business.services.vocabulary_service import VocabularyItemNotFoundError
 from app.business.services.vocabulary_service import VocabularySessionNotFoundError
 from app.business.services.vocabulary_service import VocabularyTranscriptNotFoundError
 from app.presentation.dependencies.services import get_quiz_generation_service
@@ -202,6 +203,38 @@ def save_session_vocabulary_item(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Transcript not found for this session.",
+        ) from None
+
+    return VocabularyItemResponse.from_domain(item)
+
+
+@router.delete("/{session_id}/vocabulary/{term}", response_model=VocabularyItemResponse)
+def unsave_session_vocabulary_item(
+    session_id: int,
+    term: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    vocabulary_service: Annotated[VocabularyService, Depends(get_vocabulary_service)],
+) -> VocabularyItemResponse:
+    try:
+        item = vocabulary_service.unsave_vocabulary_item(
+            session_id=session_id,
+            user_id=current_user.id,
+            term=term,
+        )
+    except VocabularySessionNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        ) from None
+    except VocabularyTranscriptNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transcript not found for this session.",
+        ) from None
+    except VocabularyItemNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vocabulary item not found.",
         ) from None
 
     return VocabularyItemResponse.from_domain(item)

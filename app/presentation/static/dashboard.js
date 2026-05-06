@@ -70,7 +70,8 @@ const state = {
   vocabularyError: "",
   vocabularyBySessionId: new Map(),
   maskedVocabularySessionIds: new Set(),
-  isVocabularySourceCollapsed: false,
+  isVocabularySourceCollapsed:
+    window.localStorage.getItem("dashboard_collapse_vocabulary_source") === "true",
   wordSearchTerm: "",
   difficultyFilter: "all",
   savedOnly: false,
@@ -81,6 +82,11 @@ const state = {
   settings: {
     defaultDifficulty: window.localStorage.getItem("dashboard_default_difficulty") ?? "medium",
     defaultQuestionType: window.localStorage.getItem("dashboard_default_question_type") ?? "mixed",
+    autoMaskVocabulary:
+      window.localStorage.getItem("dashboard_auto_mask_vocabulary") !== "false",
+    collapseVocabularySource:
+      window.localStorage.getItem("dashboard_collapse_vocabulary_source") === "true",
+    reduceMotion: window.localStorage.getItem("dashboard_reduce_motion") === "true",
   },
 }
 
@@ -302,7 +308,7 @@ const setActiveView = (view, { replaceHistory = false } = {}) => {
   elements.contextSummary.textContent = VIEW_CONTEXT[view]
   elements.main.classList.toggle(
     "is-compact-workspace",
-    view === "sessions" || view === "vocabulary",
+    view === "sessions" || view === "vocabulary" || view === "settings",
   )
 
   for (const navItem of elements.nav.querySelectorAll("[data-view]")) {
@@ -476,7 +482,7 @@ const buildSessionRail = ({
             : ""
         }
       </div>
-      <div class="session-list" aria-live="polite" ${collapsed ? "hidden" : ""}>
+      <div class="session-list" aria-live="polite" aria-hidden="${collapsed}">
         ${
           sessions.length === 0
             ? buildStateMarkup("No sessions match the current filters.")
@@ -696,6 +702,18 @@ const buildQuestionTypeSelect = (id) => {
           })
           .join("")}
       </select>
+    </label>
+  `
+}
+
+const buildToggleSetting = ({ id, label, description, checked }) => {
+  return `
+    <label class="settings-toggle" for="${id}">
+      <span>
+        <strong>${escapeHtml(label)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </span>
+      <input id="${id}" type="checkbox" data-setting-toggle="${id}" ${checked ? "checked" : ""} />
     </label>
   `
 }
@@ -1120,9 +1138,9 @@ const buildWordPanel = () => {
                             type="button"
                             class="icon-button ${item.isSaved ? "is-active" : ""}"
                             data-save-term="${encodeURIComponent(item.term)}"
-                            aria-label="${item.isSaved ? "Saved word" : `Save ${escapeHtml(item.term)}`}"
-                            title="${item.isSaved ? "Saved" : "Save"}"
-                            ${item.isSaved ? "disabled" : ""}
+                            aria-label="${item.isSaved ? `Unsave ${escapeHtml(item.term)}` : `Save ${escapeHtml(item.term)}`}"
+                            aria-pressed="${item.isSaved}"
+                            title="${item.isSaved ? "Unsave" : "Save"}"
                           >
                             ${buildStarIcon(item.isSaved)}
                           </button>
@@ -1293,33 +1311,90 @@ const renderVocabularyView = () => {
 const renderSettingsView = () => {
   const user = state.profile?.user
   elements.panels.settings.innerHTML = `
-    <div class="settings-grid">
-      <section class="content-card">
-        <h3 class="card-title">Account</h3>
-        <div class="settings-list">
-          <div class="settings-row">
-            <div>
-              <strong>${escapeHtml(user?.username ?? "Learner")}</strong>
-              <p class="panel-subtext">${escapeHtml(user?.email ?? "No email loaded")}</p>
-            </div>
-            <span class="badge is-blue">Signed in</span>
-          </div>
-          <div class="settings-row">
-            <div>
-              <strong>Main workspace</strong>
-              <p class="panel-subtext">Use Sessions for transcript preview, reading quiz, attempts, and vocabulary entry points.</p>
-            </div>
-            <button type="button" class="button-ghost" data-view-link="sessions">Open</button>
-          </div>
+    <div class="settings-page">
+      <section class="settings-hero">
+        <div>
+          <span class="eyebrow">Preferences</span>
+          <h3>Settings</h3>
+          <p>Control quiz defaults, vocabulary behavior, and interface comfort for the learning workspace.</p>
         </div>
+        <button type="button" class="button-ghost" data-reset-local-settings>Reset Local Settings</button>
       </section>
-      <section class="content-card">
-        <h3 class="card-title">Quiz Defaults</h3>
-        <div class="settings-list">
-          ${buildDifficultySelect("settings-difficulty")}
-          ${buildQuestionTypeSelect("settings-question-type")}
-        </div>
-      </section>
+
+      <div class="settings-grid">
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <span class="eyebrow">Account</span>
+            <h3 class="card-title">Learner Profile</h3>
+          </div>
+          <div class="settings-list">
+            <div class="settings-row">
+              <div>
+                <strong>${escapeHtml(user?.username ?? "Learner")}</strong>
+                <p class="panel-subtext">${escapeHtml(user?.email ?? "No email loaded")}</p>
+              </div>
+              <span class="badge is-blue">Signed in</span>
+            </div>
+            <div class="settings-row">
+              <div>
+                <strong>Session</strong>
+                <p class="panel-subtext">Sign out from this browser and return to the login page.</p>
+              </div>
+              <button type="button" class="button-ghost" data-settings-sign-out>Sign out</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <span class="eyebrow">Quiz</span>
+            <h3 class="card-title">Question Defaults</h3>
+          </div>
+          <div class="settings-form-grid">
+            ${buildDifficultySelect("settings-difficulty")}
+            ${buildQuestionTypeSelect("settings-question-type")}
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <span class="eyebrow">Vocabulary</span>
+            <h3 class="card-title">Practice Behavior</h3>
+          </div>
+          <div class="settings-list">
+            ${buildToggleSetting({
+              id: "autoMaskVocabulary",
+              label: "Hide word bank during Vocabulary Check",
+              description: "Automatically blur the vocabulary bank when a mini quiz starts.",
+              checked: state.settings.autoMaskVocabulary,
+            })}
+            ${buildToggleSetting({
+              id: "collapseVocabularySource",
+              label: "Open Vocabulary with source collapsed",
+              description: "Give Vocabulary Bank more room by default.",
+              checked: state.settings.collapseVocabularySource,
+            })}
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-header">
+            <span class="eyebrow">Interface</span>
+            <h3 class="card-title">Comfort</h3>
+          </div>
+          <div class="settings-list">
+            ${buildToggleSetting({
+              id: "reduceMotion",
+              label: "Reduce motion",
+              description: "Shorten animation and transition effects across the dashboard.",
+              checked: state.settings.reduceMotion,
+            })}
+            <div>
+              <p class="settings-note">Settings are stored locally in this browser.</p>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   `
 }
@@ -1758,31 +1833,37 @@ const saveVocabularyItem = async (term) => {
 
   const items = state.vocabularyBySessionId.get(sessionId) ?? []
   const item = items.find((candidate) => candidate.term === term)
-  if (!item || item.isSaved) {
+  if (!item) {
     return
   }
 
   try {
-    const response = await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary`, {
-      method: "POST",
-      body: JSON.stringify({
-        term: item.term,
-        context_sentence: item.contextSentence,
-        definition: item.definition,
-        difficulty: item.difficulty,
-      }),
-    })
+    const response = item.isSaved
+      ? await apiFetch(
+          `/api/v1/sessions/${sessionId}/vocabulary/${encodeURIComponent(item.term)}`,
+          { method: "DELETE" },
+        )
+      : await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary`, {
+          method: "POST",
+          body: JSON.stringify({
+            term: item.term,
+            context_sentence: item.contextSentence,
+            definition: item.definition,
+            difficulty: item.difficulty,
+          }),
+        })
     if (!response.ok) {
       throw new Error(await extractErrorMessage(response))
     }
-    const savedItem = normalizeVocabularyItem(await response.json())
+    const updatedItem = normalizeVocabularyItem(await response.json())
     state.vocabularyBySessionId.set(
       sessionId,
-      items.map((candidate) => (candidate.term === term ? savedItem : candidate)),
+      items.map((candidate) => (candidate.term === term ? updatedItem : candidate)),
     )
   } catch (error) {
     state.vocabularyState = "error"
-    state.vocabularyError = error instanceof Error ? error.message : "Could not save this word."
+    state.vocabularyError =
+      error instanceof Error ? error.message : "Could not update this word."
   }
 
   renderVocabularyView()
@@ -1823,6 +1904,46 @@ const persistSetting = (setting, value) => {
     state.settings.defaultQuestionType = value
     window.localStorage.setItem("dashboard_default_question_type", value)
   }
+}
+
+const applyInterfaceSettings = () => {
+  document.documentElement.classList.toggle("is-reduced-motion", state.settings.reduceMotion)
+}
+
+const persistToggleSetting = (setting, checked) => {
+  if (setting === "autoMaskVocabulary") {
+    state.settings.autoMaskVocabulary = checked
+    window.localStorage.setItem("dashboard_auto_mask_vocabulary", String(checked))
+  }
+  if (setting === "collapseVocabularySource") {
+    state.settings.collapseVocabularySource = checked
+    state.isVocabularySourceCollapsed = checked
+    window.localStorage.setItem("dashboard_collapse_vocabulary_source", String(checked))
+  }
+  if (setting === "reduceMotion") {
+    state.settings.reduceMotion = checked
+    window.localStorage.setItem("dashboard_reduce_motion", String(checked))
+    applyInterfaceSettings()
+  }
+}
+
+const resetLocalSettings = () => {
+  state.settings.defaultDifficulty = "medium"
+  state.settings.defaultQuestionType = "mixed"
+  state.settings.autoMaskVocabulary = true
+  state.settings.collapseVocabularySource = false
+  state.settings.reduceMotion = false
+  state.isVocabularySourceCollapsed = false
+  for (const key of [
+    "dashboard_default_difficulty",
+    "dashboard_default_question_type",
+    "dashboard_auto_mask_vocabulary",
+    "dashboard_collapse_vocabulary_source",
+    "dashboard_reduce_motion",
+  ]) {
+    window.localStorage.removeItem(key)
+  }
+  applyInterfaceSettings()
 }
 
 const bindEvents = () => {
@@ -1904,6 +2025,11 @@ const bindEvents = () => {
       }
       if (target instanceof HTMLSelectElement && target.dataset.settingSelect) {
         persistSetting(target.dataset.settingSelect, target.value)
+        renderActiveView()
+        return
+      }
+      if (target instanceof HTMLInputElement && target.dataset.settingToggle) {
+        persistToggleSetting(target.dataset.settingToggle, target.checked)
         renderActiveView()
         return
       }
@@ -2050,8 +2176,24 @@ const bindEvents = () => {
       const startVocabQuizButton = target.closest("[data-start-vocab-quiz]")
       if (startVocabQuizButton && state.selectedSessionId) {
         event.preventDefault()
-        state.maskedVocabularySessionIds.add(state.selectedSessionId)
+        if (state.settings.autoMaskVocabulary) {
+          state.maskedVocabularySessionIds.add(state.selectedSessionId)
+        }
         void loadVocabQuiz(state.selectedSessionId)
+        return
+      }
+
+      if (target.closest("[data-settings-sign-out]")) {
+        event.preventDefault()
+        clearAccessToken()
+        redirectToLogin()
+        return
+      }
+
+      if (target.closest("[data-reset-local-settings]")) {
+        event.preventDefault()
+        resetLocalSettings()
+        renderAll()
       }
     })
 
@@ -2080,6 +2222,7 @@ const init = async () => {
     return
   }
 
+  applyInterfaceSettings()
   const params = new URLSearchParams(window.location.search)
   const requestedView = params.get("view")
   state.activeView = VIEW_TITLES[requestedView] ? requestedView : "dashboard"
