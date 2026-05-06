@@ -141,6 +141,19 @@ const I18N = {
     "dashboard.notEnoughQuiz": "Not enough quiz data",
     "dashboard.focusSummary": "Submit quizzes to identify your focus area.",
     "dashboard.misses": "misses",
+    "dashboard.consistency": "Study Consistency",
+    "dashboard.consistencyCopy": "Weekly session rhythm. Goal: at least 3 focused sessions.",
+    "dashboard.latest": "Latest",
+    "dashboard.average": "Average",
+    "dashboard.change": "Change",
+    "dashboard.target": "Target",
+    "dashboard.dataPoints": "Data",
+    "dashboard.onTrack": "On track",
+    "dashboard.needsWork": "Needs work",
+    "dashboard.improving": "Improving",
+    "dashboard.declining": "Dropping",
+    "dashboard.stable": "Stable",
+    "dashboard.noAnalyticsData": "No trend data yet. Complete sessions or submit quizzes to unlock this chart.",
     "sessions.workspace": "Study Workspace",
     "sessions.emptyCopy": "Select a session to review transcript, generate a quiz, and inspect saved attempts.",
     "sessions.selected": "Selected Session",
@@ -149,6 +162,35 @@ const I18N = {
     "sessions.loadingSelected": "Loading selected transcript.",
     "sessions.workspaceAria": "Session workspace",
     "sessions.summary": "sessions in this workspace.",
+    "learningPath.title": "Learning Path",
+    "learningPath.copy": "Follow this session from transcript to review.",
+    "learningPath.progress": "steps complete",
+    "learningPath.done": "Done",
+    "learningPath.ready": "Ready",
+    "learningPath.next": "Next",
+    "learningPath.locked": "Locked",
+    "learningPath.open": "Open",
+    "learningPath.start": "Start",
+    "learningPath.review": "Review",
+    "learningPath.generate": "Generate",
+    "learningPath.track": "Track",
+    "learningPath.transcriptTitle": "Study transcript",
+    "learningPath.transcriptCopy": "Read the source text and notice key ideas.",
+    "learningPath.shadowingTitle": "Listening and shadowing",
+    "learningPath.shadowingCopy": "Complete listening practice and capture accuracy.",
+    "learningPath.quizTitle": "Generate reading quiz",
+    "learningPath.quizCopy": "Create focused questions from the transcript.",
+    "learningPath.answerTitle": "Answer quiz",
+    "learningPath.answerCopy": "Choose answers and submit the attempt.",
+    "learningPath.reviewTitle": "Review mistakes",
+    "learningPath.reviewCopy": "Check wrong answers and explanations.",
+    "learningPath.vocabTitle": "Save vocabulary",
+    "learningPath.vocabCopy": "Extract useful words and star the ones to keep.",
+    "learningPath.vocabQuizTitle": "Review vocabulary",
+    "learningPath.vocabQuizCopy": "Use mini quiz to recall saved words.",
+    "learningPath.progressTitle": "Track progress",
+    "learningPath.progressCopy": "Return to dashboard to read your learning trend.",
+    "learningPath.transcriptPreview": "Transcript Preview",
     "quizHistory.loadingSessions": "Loading sessions first.",
     "quizHistory.loading": "Loading quiz history.",
     "quizHistory.error": "Could not load quiz history.",
@@ -268,6 +310,19 @@ const I18N = {
     "dashboard.notEnoughQuiz": "Chưa đủ dữ liệu quiz",
     "dashboard.focusSummary": "Làm thêm vài quiz để xác định phần cần tập trung.",
     "dashboard.misses": "lần sai",
+    "dashboard.consistency": "Nhịp học theo tuần",
+    "dashboard.consistencyCopy": "Số buổi học mỗi tuần. Mục tiêu: ít nhất 3 buổi tập trung.",
+    "dashboard.latest": "Mới nhất",
+    "dashboard.average": "Trung bình",
+    "dashboard.change": "Thay đổi",
+    "dashboard.target": "Mục tiêu",
+    "dashboard.dataPoints": "Dữ liệu",
+    "dashboard.onTrack": "Đạt nhịp",
+    "dashboard.needsWork": "Cần cải thiện",
+    "dashboard.improving": "Đang tăng",
+    "dashboard.declining": "Đang giảm",
+    "dashboard.stable": "Ổn định",
+    "dashboard.noAnalyticsData": "Chưa có dữ liệu xu hướng. Hoàn thành buổi học hoặc nộp quiz để mở biểu đồ này.",
     "sessions.workspace": "Không gian học",
     "sessions.emptyCopy": "Chọn một buổi học để xem transcript, tạo quiz và xem lại các lần làm.",
     "sessions.selected": "Buổi học đã chọn",
@@ -276,6 +331,35 @@ const I18N = {
     "sessions.loadingSelected": "Đang tải transcript đã chọn.",
     "sessions.workspaceAria": "Không gian buổi học",
     "sessions.summary": "buổi học trong không gian này.",
+    "learningPath.title": "Lộ trình học",
+    "learningPath.copy": "Đi theo từng bước của buổi học này.",
+    "learningPath.progress": "bước hoàn thành",
+    "learningPath.done": "Xong",
+    "learningPath.ready": "Sẵn sàng",
+    "learningPath.next": "Bước tiếp",
+    "learningPath.locked": "Chưa mở",
+    "learningPath.open": "Mở",
+    "learningPath.start": "Bắt đầu",
+    "learningPath.review": "Xem lại",
+    "learningPath.generate": "Tạo quiz",
+    "learningPath.track": "Theo dõi",
+    "learningPath.transcriptTitle": "Học transcript",
+    "learningPath.transcriptCopy": "Đọc nội dung gốc và nắm ý chính.",
+    "learningPath.shadowingTitle": "Listening và shadowing",
+    "learningPath.shadowingCopy": "Hoàn thành bài nghe và ghi nhận accuracy.",
+    "learningPath.quizTitle": "Sinh quiz đọc hiểu",
+    "learningPath.quizCopy": "Tạo câu hỏi tập trung từ transcript.",
+    "learningPath.answerTitle": "Làm quiz",
+    "learningPath.answerCopy": "Chọn đáp án và nộp lần làm.",
+    "learningPath.reviewTitle": "Xem lỗi sai",
+    "learningPath.reviewCopy": "Xem đáp án sai và explanation.",
+    "learningPath.vocabTitle": "Lưu từ vựng",
+    "learningPath.vocabCopy": "Trích từ khó và đánh dấu từ cần giữ.",
+    "learningPath.vocabQuizTitle": "Ôn từ vựng",
+    "learningPath.vocabQuizCopy": "Làm mini quiz để nhớ từ đã học.",
+    "learningPath.progressTitle": "Theo dõi tiến độ",
+    "learningPath.progressCopy": "Quay lại dashboard để xem xu hướng học.",
+    "learningPath.transcriptPreview": "Xem transcript",
     "quizHistory.loadingSessions": "Đang tải buổi học trước.",
     "quizHistory.loading": "Đang tải lịch sử quiz.",
     "quizHistory.error": "Không tải được lịch sử quiz.",
@@ -301,11 +385,12 @@ const state = {
   sessionStatusFilter: "all",
   sessionDateFilter: "",
   selectedSessionId: null,
-  activeStudyTab: "quiz",
+  activeStudyTab: "path",
   activeSelectionRequestId: 0,
   loadingSessionIds: new Set(),
   sessionDetailErrorsById: new Map(),
   sessionDetailsById: new Map(),
+  expandedTranscriptSessionIds: new Set(),
   generatingSessionIds: new Set(),
   quizSessionId: null,
   quizState: "empty",
@@ -321,6 +406,8 @@ const state = {
   loadingAttemptHistorySessionIds: new Set(),
   attemptHistoryErrorsBySessionId: new Map(),
   activeAttemptIdBySessionId: new Map(),
+  reviewedAttemptSessionIds: new Set(),
+  reflectedSessionIds: new Set(),
   quizHistoryState: "empty",
   quizHistoryError: "",
   quizAttempts: [],
@@ -390,6 +477,10 @@ const normalizeLanguage = (language) => {
 const t = (key) => {
   const language = normalizeLanguage(state.settings.language)
   return I18N[language]?.[key] ?? I18N.en[key] ?? key
+}
+
+const localize = (english, vietnamese) => {
+  return normalizeLanguage(state.settings.language) === "vi" ? vietnamese : english
 }
 
 const applyLanguage = () => {
@@ -721,29 +812,192 @@ const buildMetricGrid = () => {
   `
 }
 
-const buildBars = ({ items, valueKey, labelKey, type = "", maxValue = 100 }) => {
-  if (!Array.isArray(items) || items.length === 0) {
-    return `<p class="state-copy">${escapeHtml(t("dashboard.notEnoughQuiz"))}</p>`
+const roundMetric = (value) => {
+  return Math.round(Number(value) * 10) / 10
+}
+
+const formatChartValue = (value, unit = "%") => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--"
   }
 
-  const resolvedMax = Math.max(maxValue, ...items.map((item) => Number(item[valueKey] ?? 0)))
+  const roundedValue = roundMetric(value)
+  return unit === "%" ? `${roundedValue}%` : String(roundedValue)
+}
+
+const formatSignedChartValue = (value, unit = "%") => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--"
+  }
+
+  const roundedValue = roundMetric(value)
+  const sign = roundedValue > 0 ? "+" : ""
+  return `${sign}${formatChartValue(roundedValue, unit)}`
+}
+
+const getTrendTone = (delta) => {
+  if (delta > 1) {
+    return "improving"
+  }
+  if (delta < -1) {
+    return "declining"
+  }
+  return "stable"
+}
+
+const formatChartCount = (count, type) => {
+  const normalizedCount = Number(count ?? 0)
+  if (type === "quiz") {
+    return localize(
+      `${normalizedCount} attempt${normalizedCount === 1 ? "" : "s"}`,
+      `${normalizedCount} lần làm`,
+    )
+  }
+  if (type === "week") {
+    return localize(
+      `${normalizedCount} session${normalizedCount === 1 ? "" : "s"}`,
+      `${normalizedCount} buổi`,
+    )
+  }
+  return localize(
+    `${normalizedCount} session${normalizedCount === 1 ? "" : "s"}`,
+    `${normalizedCount} buổi`,
+  )
+}
+
+const buildChartInsight = ({ latest, previous, average, goal, unit, type }) => {
+  const delta = previous === null ? null : latest - previous
+  const trendTone = delta === null ? "stable" : getTrendTone(delta)
+  const isOnTrack = latest >= goal
+  const metricName =
+    type === "quiz"
+      ? localize("quiz score", "điểm quiz")
+      : type === "week"
+        ? localize("weekly practice rhythm", "nhịp học theo tuần")
+        : localize("listening accuracy", "độ chính xác nghe")
+  const trendCopy =
+    delta === null
+      ? localize("Need one more data point to compare trend.", "Cần thêm một mốc dữ liệu để so sánh xu hướng.")
+      : localize(
+          `${t(`dashboard.${trendTone}`)} by ${formatSignedChartValue(delta, unit)} from the previous point.`,
+          `${t(`dashboard.${trendTone}`)} ${formatSignedChartValue(delta, unit)} so với mốc trước.`,
+        )
+
   return `
-    <div class="analytics-bars">
-      ${items
-        .map((item) => {
-          const value = Number(item[valueKey] ?? 0)
-          const height = Math.max(6, Math.round((value / resolvedMax) * 100))
-          const label = formatShortDate(item[labelKey])
-          return `
-            <div class="analytics-bar ${type ? `is-${type}` : ""}" title="${escapeHtml(`${label}: ${value}`)}">
-              <span class="analytics-bar-fill" style="height: ${height}%"></span>
-              <span class="analytics-bar-label">${escapeHtml(label)}</span>
-            </div>
-          `
-        })
-        .join("")}
+    <div class="analytics-insight ${isOnTrack ? "is-good" : "is-warning"}">
+      <strong>${escapeHtml(isOnTrack ? t("dashboard.onTrack") : t("dashboard.needsWork"))}</strong>
+      <span>${escapeHtml(
+        localize(
+          `Latest ${metricName} is ${formatChartValue(latest, unit)}; average is ${formatChartValue(average, unit)}; target is ${formatChartValue(goal, unit)}. ${trendCopy}`,
+          `${metricName} mới nhất là ${formatChartValue(latest, unit)}; trung bình ${formatChartValue(average, unit)}; mục tiêu ${formatChartValue(goal, unit)}. ${trendCopy}`,
+        ),
+      )}</span>
     </div>
   `
+}
+
+const buildLearningChart = ({
+  items,
+  valueKey,
+  labelKey,
+  countKey,
+  type = "accuracy",
+  goal = 85,
+  unit = "%",
+  maxValue = 100,
+}) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `<p class="state-copy">${escapeHtml(t("dashboard.noAnalyticsData"))}</p>`
+  }
+
+  const values = items.map((item) => Number(item[valueKey] ?? 0)).filter((value) => Number.isFinite(value))
+  if (values.length === 0) {
+    return `<p class="state-copy">${escapeHtml(t("dashboard.noAnalyticsData"))}</p>`
+  }
+
+  const latest = values[values.length - 1]
+  const previous = values.length > 1 ? values[values.length - 2] : null
+  const average = values.reduce((total, value) => total + value, 0) / values.length
+  const delta = previous === null ? null : latest - previous
+  const resolvedMax = unit === "%" ? 100 : Math.max(maxValue, goal, ...values, 1)
+  const goalPosition = Math.min(100, Math.max(0, (goal / resolvedMax) * 100))
+  const axisValues =
+    unit === "%"
+      ? [resolvedMax, resolvedMax * 0.75, resolvedMax * 0.5, resolvedMax * 0.25, 0]
+      : [...new Set([resolvedMax, Math.ceil(resolvedMax * 0.67), Math.ceil(resolvedMax * 0.34), 0])]
+  const totalCount = countKey
+    ? items.reduce((total, item) => total + Number(item[countKey] ?? 0), 0)
+    : values.length
+  const trendTone = delta === null ? "stable" : getTrendTone(delta)
+
+  return `
+    <div class="analytics-kpi-row">
+      <div class="analytics-kpi">
+        <span>${escapeHtml(t("dashboard.latest"))}</span>
+        <strong>${escapeHtml(formatChartValue(latest, unit))}</strong>
+      </div>
+      <div class="analytics-kpi">
+        <span>${escapeHtml(t("dashboard.average"))}</span>
+        <strong>${escapeHtml(formatChartValue(average, unit))}</strong>
+      </div>
+      <div class="analytics-kpi">
+        <span>${escapeHtml(t("dashboard.change"))}</span>
+        <strong class="is-${trendTone}">${escapeHtml(delta === null ? "--" : formatSignedChartValue(delta, unit))}</strong>
+      </div>
+      <div class="analytics-kpi">
+        <span>${escapeHtml(t("dashboard.dataPoints"))}</span>
+        <strong>${escapeHtml(formatChartCount(totalCount, type))}</strong>
+      </div>
+    </div>
+    <div class="analytics-chart">
+      <div class="analytics-y-axis" aria-hidden="true">
+        ${axisValues.map((value) => `<span>${escapeHtml(formatChartValue(value, unit))}</span>`).join("")}
+      </div>
+      <div class="analytics-plot">
+        <span class="analytics-goal-line" style="bottom: ${goalPosition}%">
+          <em>${escapeHtml(`${t("dashboard.target")} ${formatChartValue(goal, unit)}`)}</em>
+        </span>
+        <div class="analytics-bars">
+          ${items
+            .map((item) => {
+              const value = Number(item[valueKey] ?? 0)
+              const height = Math.max(4, Math.round((value / resolvedMax) * 100))
+              const label = formatShortDate(item[labelKey])
+              const count = countKey ? Number(item[countKey] ?? 0) : 1
+              const countLabel = formatChartCount(count, type)
+              return `
+                <div class="analytics-bar is-${type}" title="${escapeHtml(`${label}: ${formatChartValue(value, unit)} / ${countLabel}`)}">
+                  <span class="analytics-bar-value">${escapeHtml(formatChartValue(value, unit))}</span>
+                  <span class="analytics-bar-track">
+                    <span class="analytics-bar-fill" style="height: ${height}%"></span>
+                  </span>
+                  <span class="analytics-bar-label">${escapeHtml(label)}</span>
+                  <span class="analytics-bar-count">${escapeHtml(countLabel)}</span>
+                </div>
+              `
+            })
+            .join("")}
+        </div>
+      </div>
+    </div>
+    ${buildChartInsight({ latest, previous, average, goal, unit, type })}
+  `
+}
+
+const buildBars = ({ items, valueKey, labelKey, type = "accuracy", maxValue = 100 }) => {
+  const countKey = type === "quiz" ? "attempt_count" : type === "week" ? "session_count" : "session_count"
+  const goal = type === "quiz" ? 80 : type === "week" ? 3 : 85
+  const unit = type === "week" ? "" : "%"
+  return buildLearningChart({
+    items,
+    valueKey,
+    labelKey,
+    countKey,
+    type,
+    goal,
+    unit,
+    maxValue,
+  })
 }
 
 const buildSessionRail = ({
@@ -858,7 +1112,7 @@ const renderDashboardView = () => {
   panel.innerHTML = `
     ${buildMetricGrid()}
     <div class="dashboard-grid">
-      <article class="content-card">
+      <article class="content-card analytics-card">
         <div>
           <h3 class="card-title">${escapeHtml(t("dashboard.accuracyTrend"))}</h3>
           <p class="panel-subtext">${escapeHtml(t("dashboard.accuracyCopy"))}</p>
@@ -867,10 +1121,11 @@ const renderDashboardView = () => {
           items: analytics.accuracy_by_day ?? [],
           valueKey: "average_accuracy",
           labelKey: "date",
+          type: "accuracy",
           maxValue: 100,
         })}
       </article>
-      <article class="content-card">
+      <article class="content-card insight-card">
         <div>
           <h3 class="card-title">${escapeHtml(t("dashboard.focusArea"))}</h3>
           <p class="panel-subtext">${escapeHtml(t("dashboard.focusCopy"))}</p>
@@ -882,7 +1137,7 @@ const renderDashboardView = () => {
           <span class="badge is-orange">${escapeHtml(weakestSkill.missed_count)} ${escapeHtml(t("dashboard.misses"))}</span>
         </div>
       </article>
-      <article class="content-card">
+      <article class="content-card analytics-card">
         <div>
           <h3 class="card-title">${escapeHtml(t("dashboard.quizScore"))}</h3>
           <p class="panel-subtext">${escapeHtml(t("dashboard.quizScoreCopy"))}</p>
@@ -893,6 +1148,19 @@ const renderDashboardView = () => {
           labelKey: "date",
           type: "quiz",
           maxValue: 100,
+        })}
+      </article>
+      <article class="content-card analytics-card">
+        <div>
+          <h3 class="card-title">${escapeHtml(t("dashboard.consistency"))}</h3>
+          <p class="panel-subtext">${escapeHtml(t("dashboard.consistencyCopy"))}</p>
+        </div>
+        ${buildBars({
+          items: analytics.sessions_by_week ?? [],
+          valueKey: "session_count",
+          labelKey: "week_start",
+          type: "week",
+          maxValue: 3,
         })}
       </article>
       <article class="content-card">
@@ -928,6 +1196,300 @@ const renderDashboardView = () => {
         </div>
       </article>
     </div>
+  `
+}
+
+const buildLearningPathMarkup = (session, detail = null) => {
+  const sessionId = session.sessionId
+  const transcriptText = detail?.rawText ?? session.rawText ?? ""
+  const hasTranscript = Boolean(transcriptText || session.wordCount > 0)
+  const hasShadowing = session.accuracyScore !== null && session.accuracyScore !== undefined
+  const accuracyScore = Number(session.accuracyScore ?? 0)
+  const hasQuiz =
+    session.quizStatus === "Quiz Generated" ||
+    state.quizzesBySessionId.has(sessionId) ||
+    (state.quizSessionId === sessionId && state.currentQuizQuestions.length > 0)
+  const attempts = state.attemptHistoryBySessionId.get(sessionId) ?? []
+  const submittedAttempt =
+    state.currentQuizId && state.quizSessionId === sessionId
+      ? state.submittedAttemptByQuizId.get(state.currentQuizId)
+      : null
+  const hasAttempt = attempts.length > 0 || Boolean(submittedAttempt)
+  const latestAttempt = attempts[0] ?? submittedAttempt ?? null
+  const latestQuiz = state.quizzesBySessionId.get(sessionId)
+  const quizQuestionCount =
+    state.quizSessionId === sessionId && state.currentQuizQuestions.length > 0
+      ? state.currentQuizQuestions.length
+      : latestQuiz?.questions?.length ?? 0
+  const latestScore = latestAttempt?.score ?? null
+  const wrongCount =
+    latestAttempt === null
+      ? null
+      : Math.max(0, Number(latestAttempt.total_questions ?? 0) - Number(latestAttempt.correct_count ?? 0))
+  const hasReviewedMistakes =
+    latestAttempt !== null && (wrongCount === 0 || state.reviewedAttemptSessionIds.has(sessionId))
+  const vocabularyItems = state.vocabularyBySessionId.get(sessionId) ?? []
+  const savedVocabularyCount = vocabularyItems.filter((item) => item.isSaved).length
+  const hasVocabularyLoaded = state.vocabularyBySessionId.has(sessionId)
+  const vocabQuizQuestions = state.vocabQuizBySessionId.get(sessionId) ?? []
+  const vocabQuizAnswers = state.vocabQuizAnswersBySessionId.get(sessionId) ?? {}
+  const answeredVocabQuizCount = Object.keys(vocabQuizAnswers).length
+  const hasCompletedVocabQuiz =
+    vocabQuizQuestions.length > 0 && answeredVocabQuizCount >= vocabQuizQuestions.length
+  const savedVocabularyTarget = 3
+  const isReflected = state.reflectedSessionIds.has(sessionId)
+  const clampScore = (score, weight) => Math.min(weight, Math.max(0, score))
+  const buildCriteria = (items) => {
+    return `
+      <ul class="learning-criteria">
+        ${items
+          .map((item) => {
+            return `
+              <li class="${item.done ? "is-done" : ""}">
+                <span aria-hidden="true">${item.done ? "✓" : "·"}</span>
+                ${escapeHtml(item.label)}
+              </li>
+            `
+          })
+          .join("")}
+      </ul>
+    `
+  }
+
+  const phases = [
+    {
+      phase: localize("Input", "Tiếp nhận"),
+      title: localize("Transcript and focused listening", "Transcript và nghe tập trung"),
+      method: localize(
+        "Build comprehension first, then verify what was actually heard.",
+        "Hiểu nội dung trước, sau đó kiểm chứng phần nghe thật sự.",
+      ),
+      evidence: localize(
+        `${formatWordCount(session.wordCount)} / ${formatPercent(session.accuracyScore)} accuracy`,
+        `${formatWordCount(session.wordCount)} / accuracy ${formatPercent(session.accuracyScore)}`,
+      ),
+      target: localize("Transcript loaded and listening accuracy at least 85%.", "Có transcript và accuracy nghe từ 85% trở lên."),
+      criteria: [
+        { label: localize("Transcript available", "Có transcript"), done: hasTranscript },
+        { label: localize("Listening accuracy recorded", "Đã ghi nhận accuracy"), done: hasShadowing },
+        { label: localize("Accuracy target 85%+", "Accuracy đạt 85%+"), done: hasShadowing && accuracyScore >= 85 },
+      ],
+      score: clampScore((hasTranscript ? 10 : 0) + (hasShadowing ? 10 : 0) + (accuracyScore >= 85 ? 5 : 0), 25),
+      weight: 25,
+      locked: !hasTranscript,
+      action: hasTranscript ? "transcript" : null,
+      actionLabel: t("learningPath.review"),
+    },
+    {
+      phase: localize("Active recall", "Gợi nhớ chủ động"),
+      title: localize("Reading quiz attempt", "Làm quiz đọc hiểu"),
+      method: localize(
+        "Use retrieval practice: answer before seeing explanations.",
+        "Dùng gợi nhớ chủ động: trả lời trước khi xem explanation.",
+      ),
+      evidence: localize(
+        `${quizQuestionCount || 0} questions / latest score ${formatPercent(latestScore)}`,
+        `${quizQuestionCount || 0} câu / điểm mới nhất ${formatPercent(latestScore)}`,
+      ),
+      target: localize("Generate quiz, submit one attempt, and reach 80%+.", "Tạo quiz, nộp một lần làm và đạt từ 80% trở lên."),
+      criteria: [
+        { label: localize("Quiz generated", "Đã sinh quiz"), done: hasQuiz },
+        { label: localize("Attempt submitted", "Đã nộp bài"), done: hasAttempt },
+        { label: localize("Score target 80%+", "Điểm đạt 80%+"), done: Number(latestScore ?? 0) >= 80 },
+      ],
+      score: clampScore((hasQuiz ? 8 : 0) + (hasAttempt ? 10 : 0) + (Number(latestScore ?? 0) >= 80 ? 7 : 0), 25),
+      weight: 25,
+      locked: !hasTranscript,
+      action: hasQuiz ? "quiz" : "generate-quiz",
+      actionLabel: hasQuiz ? t("learningPath.open") : t("learningPath.generate"),
+    },
+    {
+      phase: localize("Feedback", "Sửa lỗi"),
+      title: localize("Mistake review", "Xem và sửa lỗi sai"),
+      method: localize(
+        "Turn wrong answers into corrected rules, not just a score.",
+        "Biến đáp án sai thành quy tắc đã sửa, không chỉ nhìn điểm.",
+      ),
+      evidence:
+        wrongCount === null
+          ? localize("No submitted attempt yet", "Chưa có lần làm đã nộp")
+          : localize(`${wrongCount} wrong answers to review`, `${wrongCount} câu sai cần xem lại`),
+      target: localize("Review every wrong answer and explanation.", "Xem lại từng câu sai và explanation."),
+      criteria: [
+        { label: localize("Attempt history exists", "Có lịch sử làm bài"), done: hasAttempt },
+        { label: localize("Wrong answers reviewed", "Đã xem lỗi sai"), done: hasReviewedMistakes },
+      ],
+      score: clampScore((hasAttempt ? 8 : 0) + (hasReviewedMistakes ? 12 : 0), 20),
+      weight: 20,
+      locked: !hasAttempt,
+      action: hasAttempt ? "attempts" : null,
+      actionLabel: t("learningPath.review"),
+    },
+    {
+      phase: localize("Consolidation", "Củng cố"),
+      title: localize("Vocabulary bank and mini quiz", "Từ vựng và mini quiz"),
+      method: localize(
+        "Save difficult words, then recall them without looking at the bank.",
+        "Lưu từ khó, sau đó tự nhớ lại mà không nhìn word bank.",
+      ),
+      evidence: localize(
+        `${vocabularyItems.length} extracted / ${savedVocabularyCount} saved / ${answeredVocabQuizCount}/${vocabQuizQuestions.length} quiz answers`,
+        `${vocabularyItems.length} từ trích ra / ${savedVocabularyCount} đã lưu / ${answeredVocabQuizCount}/${vocabQuizQuestions.length} câu ôn từ`,
+      ),
+      target: localize("Save at least 3 useful words and finish vocabulary check.", "Lưu ít nhất 3 từ hữu ích và hoàn thành vocabulary check."),
+      criteria: [
+        { label: localize("Vocabulary extracted", "Đã trích từ vựng"), done: hasVocabularyLoaded },
+        {
+          label: localize(`Save ${savedVocabularyTarget}+ words`, `Lưu ${savedVocabularyTarget}+ từ`),
+          done: savedVocabularyCount >= savedVocabularyTarget,
+        },
+        { label: localize("Mini quiz completed", "Hoàn thành mini quiz"), done: hasCompletedVocabQuiz },
+      ],
+      score: clampScore(
+        (hasVocabularyLoaded ? 5 : 0) +
+          Math.min(savedVocabularyCount, savedVocabularyTarget) * (10 / savedVocabularyTarget) +
+          (hasCompletedVocabQuiz ? 5 : 0),
+        20,
+      ),
+      weight: 20,
+      locked: !hasTranscript,
+      action: savedVocabularyCount > 0 || vocabularyItems.length > 0 ? "vocab-quiz" : "vocabulary",
+      actionLabel: savedVocabularyCount > 0 ? t("learningPath.start") : t("learningPath.open"),
+    },
+    {
+      phase: localize("Reflection", "Phản tư"),
+      title: localize("Progress decision", "Quyết định bước tiếp theo"),
+      method: localize(
+        "Use trend data to decide whether to repeat, retake, or move on.",
+        "Dựa vào xu hướng để quyết định luyện lại, làm lại quiz hay học bài mới.",
+      ),
+      evidence: localize(
+        hasAttempt ? "Attempt saved into analytics" : "No attempt in analytics yet",
+        hasAttempt ? "Lần làm đã được lưu vào analytics" : "Chưa có lần làm trong analytics",
+      ),
+      target: localize("Check dashboard after the feedback loop.", "Xem dashboard sau vòng sửa lỗi."),
+      criteria: [
+        { label: localize("Attempt contributes to analytics", "Lần làm đóng góp vào analytics"), done: hasAttempt },
+        { label: localize("Dashboard checked", "Đã xem dashboard"), done: isReflected },
+      ],
+      score: clampScore((hasAttempt ? 4 : 0) + (isReflected ? 6 : 0), 10),
+      weight: 10,
+      locked: !hasAttempt,
+      action: "dashboard",
+      actionLabel: t("learningPath.track"),
+    },
+  ]
+
+  const totalWeight = phases.reduce((total, phase) => total + phase.weight, 0)
+  const earnedWeight = phases.reduce((total, phase) => total + Math.min(phase.score, phase.weight), 0)
+  const progressPercent = Math.round((earnedWeight / totalWeight) * 100)
+  const nextPhaseIndex = phases.findIndex((phase) => !phase.locked && phase.score < phase.weight)
+  const recommendedPhase = phases[nextPhaseIndex === -1 ? phases.length - 1 : nextPhaseIndex]
+  const isTranscriptExpanded = state.expandedTranscriptSessionIds.has(sessionId)
+  const getStatusLabel = (status) => {
+    if (status === "done") {
+      return t("learningPath.done")
+    }
+    if (status === "next") {
+      return t("learningPath.next")
+    }
+    if (status === "locked") {
+      return t("learningPath.locked")
+    }
+    return t("learningPath.ready")
+  }
+
+  return `
+    <section class="learning-path learning-cycle" aria-label="${escapeHtml(t("learningPath.title"))}">
+      <div class="learning-path-header">
+        <div>
+          <span class="eyebrow">${escapeHtml(t("learningPath.title"))}</span>
+          <h3>${escapeHtml(recommendedPhase.title)}</h3>
+          <p class="panel-subtext">${escapeHtml(localize(
+            "Scientific loop: input, active recall, feedback, consolidation, then reflection.",
+            "Vòng học chuẩn: tiếp nhận, gợi nhớ chủ động, sửa lỗi, củng cố rồi phản tư.",
+          ))}</p>
+        </div>
+        <div class="learning-path-progress" aria-label="${progressPercent}% ${escapeHtml(t("learningPath.progress"))}">
+          <span>${escapeHtml(localize("Cycle mastery", "Mức hoàn thiện"))}</span>
+          <strong>${progressPercent}%</strong>
+          <div class="learning-path-meter" aria-hidden="true">
+            <span style="width: ${progressPercent}%"></span>
+          </div>
+        </div>
+      </div>
+      <div class="learning-next-callout">
+        <strong>${escapeHtml(localize("Recommended next step", "Bước nên làm tiếp"))}</strong>
+        <span>${escapeHtml(`${recommendedPhase.phase}: ${recommendedPhase.target}`)}</span>
+      </div>
+      <div class="learning-cycle-list">
+        ${phases
+          .map((phase, index) => {
+            const status =
+              phase.locked
+                ? "locked"
+                : phase.score >= phase.weight
+                  ? "done"
+                  : index === nextPhaseIndex
+                    ? "next"
+                    : "ready"
+            const canClick = Boolean(phase.action) && status !== "locked"
+            const phasePercent = Math.round((Math.min(phase.score, phase.weight) / phase.weight) * 100)
+            return `
+              <article class="learning-phase is-${status}">
+                <div class="learning-phase-top">
+                  <span class="learning-step-index">${index + 1}</span>
+                  <div>
+                    <span class="learning-phase-label">${escapeHtml(phase.phase)}</span>
+                    <h4>${escapeHtml(phase.title)}</h4>
+                  </div>
+                  <span class="badge">${escapeHtml(getStatusLabel(status))}</span>
+                </div>
+                <p class="learning-method">${escapeHtml(phase.method)}</p>
+                <div class="learning-phase-meter" aria-hidden="true">
+                  <span style="width: ${phasePercent}%"></span>
+                </div>
+                <div class="learning-evidence-grid">
+                  <div>
+                    <span>${escapeHtml(localize("Evidence", "Bằng chứng"))}</span>
+                    <strong>${escapeHtml(phase.evidence)}</strong>
+                  </div>
+                  <div>
+                    <span>${escapeHtml(localize("Target", "Tiêu chí"))}</span>
+                    <strong>${escapeHtml(phase.target)}</strong>
+                  </div>
+                </div>
+                ${buildCriteria(phase.criteria)}
+                ${
+                  canClick
+                    ? `
+                      <button
+                        type="button"
+                        class="button-text learning-step-action"
+                        data-learning-action="${phase.action}"
+                        data-learning-session="${sessionId}"
+                      >
+                        ${escapeHtml(phase.actionLabel)}
+                      </button>
+                    `
+                    : ""
+                }
+              </article>
+            `
+          })
+          .join("")}
+      </div>
+      ${
+        isTranscriptExpanded && transcriptText
+          ? `
+            <div class="learning-transcript-preview">
+              <span class="question-index">${escapeHtml(t("learningPath.transcriptPreview"))}</span>
+              <p>${escapeHtml(transcriptText)}</p>
+            </div>
+          `
+          : ""
+      }
+    </section>
   `
 }
 
@@ -967,9 +1529,12 @@ const buildStudyBoard = () => {
           </div>
         </div>
         <div class="study-tabs" role="tablist" aria-label="${escapeHtml(t("sessions.workspaceAria"))}">
-          ${["quiz", "attempts"]
-            .map((tab) => {
-              const label = tab === "quiz" ? t("sessions.readingQuiz") : t("sessions.attempts")
+          ${[
+            ["path", t("learningPath.title")],
+            ["quiz", t("sessions.readingQuiz")],
+            ["attempts", t("sessions.attempts")],
+          ]
+            .map(([tab, label]) => {
               return `
                 <button
                   type="button"
@@ -991,9 +1556,11 @@ const buildStudyBoard = () => {
             ? buildLoadingMarkup(t("sessions.loadingSelected"))
             : detailError
               ? buildStateMarkup(detailError, { error: true })
-              : state.activeStudyTab === "quiz"
-                ? buildReadingQuizMarkup()
-                : buildAttemptHistoryMarkup(selectedSession.sessionId)
+              : state.activeStudyTab === "path"
+                ? buildLearningPathMarkup(selectedSession, detail)
+                : state.activeStudyTab === "quiz"
+                  ? buildReadingQuizMarkup()
+                  : buildAttemptHistoryMarkup(selectedSession.sessionId)
         }
       </div>
     </section>
@@ -2637,10 +3204,71 @@ const bindEvents = () => {
         event.preventDefault()
         state.activeStudyTab = studyTab.dataset.studyTab
         if (state.activeStudyTab === "attempts" && state.selectedSessionId) {
+          state.reviewedAttemptSessionIds.add(state.selectedSessionId)
           void loadAttemptHistoryForSession(state.selectedSessionId)
         }
         renderSessionsView()
         return
+      }
+
+      const learningActionButton = target.closest("[data-learning-action]")
+      if (learningActionButton) {
+        event.preventDefault()
+        const action = learningActionButton.dataset.learningAction
+        const sessionId = Number(learningActionButton.dataset.learningSession)
+
+        if (action === "transcript") {
+          if (state.expandedTranscriptSessionIds.has(sessionId)) {
+            state.expandedTranscriptSessionIds.delete(sessionId)
+          } else {
+            state.expandedTranscriptSessionIds.add(sessionId)
+          }
+          renderSessionsView()
+          return
+        }
+
+        if (action === "generate-quiz") {
+          void generateQuizForSelectedSession()
+          return
+        }
+
+        if (action === "quiz") {
+          state.activeStudyTab = "quiz"
+          renderSessionsView()
+          return
+        }
+
+        if (action === "attempts") {
+          state.activeStudyTab = "attempts"
+          if (state.selectedSessionId) {
+            state.reviewedAttemptSessionIds.add(state.selectedSessionId)
+            void loadAttemptHistoryForSession(state.selectedSessionId)
+          }
+          renderSessionsView()
+          return
+        }
+
+        if (action === "vocabulary" || action === "vocab-quiz") {
+          void (async () => {
+            setActiveView("vocabulary")
+            await selectSession(sessionId, { replaceHistory: true })
+            if (action === "vocab-quiz") {
+              if (state.settings.autoMaskVocabulary) {
+                state.maskedVocabularySessionIds.add(sessionId)
+              }
+              await loadVocabQuiz(sessionId)
+            }
+          })()
+          return
+        }
+
+        if (action === "dashboard") {
+          if (sessionId) {
+            state.reflectedSessionIds.add(sessionId)
+          }
+          setActiveView("dashboard")
+          return
+        }
       }
 
       if (target.closest("[data-generate-selected-quiz]")) {
