@@ -89,6 +89,15 @@ class Settings:
     openrouter_max_tokens: int = field(
         default_factory=lambda: int(os.getenv("OPENROUTER_MAX_TOKENS", "1800")),
     )
+    openrouter_context_assist_timeout_seconds: int = field(
+        default_factory=lambda: int(os.getenv("OPENROUTER_CONTEXT_ASSIST_TIMEOUT_SECONDS", "12")),
+    )
+    openrouter_context_assist_max_tokens: int = field(
+        default_factory=lambda: int(os.getenv("OPENROUTER_CONTEXT_ASSIST_MAX_TOKENS", "900")),
+    )
+    context_assist_max_terms_per_segment: int = field(
+        default_factory=lambda: int(os.getenv("CONTEXT_ASSIST_MAX_TERMS_PER_SEGMENT", "6")),
+    )
     ai_quiz_question_count: int = field(
         default_factory=lambda: int(os.getenv("AI_QUIZ_QUESTION_COUNT", "5")),
     )

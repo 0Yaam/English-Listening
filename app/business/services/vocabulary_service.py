@@ -320,7 +320,7 @@ class VocabularyService:
     def _definition_for_term(self, term: str) -> str:
         return self._DEFINITIONS.get(
             term,
-            "A useful transcript word to review through its sentence context.",
+            "Review this word through its sentence context before memorizing it.",
         )
 
     @staticmethod

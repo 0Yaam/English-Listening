@@ -414,6 +414,9 @@ const state = {
   activeGlobalAttemptId: null,
   vocabularyState: "empty",
   vocabularyError: "",
+  vocabularySourceMode: "session",
+  savedVocabularyState: "idle",
+  savedVocabularyError: "",
   vocabularyBySessionId: new Map(),
   maskedVocabularySessionIds: new Set(),
   isVocabularySourceCollapsed:
@@ -460,6 +463,15 @@ const elements = {
     settings: document.getElementById("settings-view"),
   },
 }
+
+const SCROLL_SNAPSHOT_SELECTORS = [
+  ".session-list",
+  ".study-content",
+  ".attempt-list",
+  ".attempt-review-panel",
+  ".word-list",
+  ".mini-quiz-body",
+]
 
 const escapeHtml = (value) => {
   return String(value ?? "")
@@ -644,6 +656,20 @@ const getSelectedSessionDetail = () => {
   return state.sessionDetailsById.get(state.selectedSessionId) ?? getSelectedSession()
 }
 
+const getSavedVocabularyItems = () => {
+  return state.sessions.flatMap((session) => {
+    const items = state.vocabularyBySessionId.get(session.sessionId) ?? []
+    return items
+      .filter((item) => item.isSaved)
+      .map((item) => ({
+        ...item,
+        sourceSessionId: session.sessionId,
+        sourceTitle: session.videoTitle,
+        sourceDate: session.completedAt,
+      }))
+  })
+}
+
 const getFilteredSessions = () => {
   const query = state.sessionSearch.trim().toLowerCase()
   return state.sessions.filter((session) => {
@@ -725,7 +751,9 @@ const setActiveView = (view, { replaceHistory = false } = {}) => {
   if (view === "quiz-history" && state.sessionsState === "ready" && state.quizHistoryState === "empty") {
     void loadQuizHistory()
   }
-  if (view === "vocabulary" && state.selectedSessionId) {
+  if (view === "vocabulary" && state.vocabularySourceMode === "saved") {
+    void loadAllVocabulary()
+  } else if (view === "vocabulary" && state.selectedSessionId) {
     void loadVocabulary(state.selectedSessionId)
   }
 
@@ -760,6 +788,38 @@ const buildStateMarkup = (message, { error = false } = {}) => {
       <p class="state-copy">${escapeHtml(message)}</p>
     </div>
   `
+}
+
+const captureScrollSnapshot = (root) => {
+  if (!root) {
+    return []
+  }
+
+  return SCROLL_SNAPSHOT_SELECTORS.flatMap((selector) => {
+    return [...root.querySelectorAll(selector)].map((element, index) => ({
+      selector,
+      index,
+      scrollLeft: element.scrollLeft,
+      scrollTop: element.scrollTop,
+    }))
+  })
+}
+
+const restoreScrollSnapshot = (root, snapshot) => {
+  if (!root || snapshot.length === 0) {
+    return
+  }
+
+  window.requestAnimationFrame(() => {
+    for (const item of snapshot) {
+      const target = root.querySelectorAll(item.selector)[item.index]
+      if (!target) {
+        continue
+      }
+      target.scrollLeft = item.scrollLeft
+      target.scrollTop = item.scrollTop
+    }
+  })
 }
 
 const buildLoadingMarkup = (message) => {
@@ -1005,6 +1065,7 @@ const buildSessionRail = ({
   summary = "",
   collapsible = false,
   collapsed = false,
+  includeSavedVocabulary = false,
 } = {}) => {
   if (state.sessionsState === "loading") {
     return `
@@ -1035,6 +1096,7 @@ const buildSessionRail = ({
   }
 
   const sessions = getFilteredSessions()
+  const savedVocabularyCount = getSavedVocabularyItems().length
   return `
     <aside class="session-rail ${collapsed ? "is-collapsed" : ""}">
       <div class="card-header">
@@ -1060,11 +1122,31 @@ const buildSessionRail = ({
       </div>
       <div class="session-list" aria-live="polite" aria-hidden="${collapsed}">
         ${
+          includeSavedVocabulary
+            ? `
+              <button
+                type="button"
+                class="session-button saved-source-button ${state.vocabularySourceMode === "saved" ? "is-selected" : ""}"
+                data-select-saved-vocabulary
+                aria-pressed="${state.vocabularySourceMode === "saved"}"
+              >
+                <h4 class="session-title">Saved Vocabulary</h4>
+                <div class="item-meta">
+                  <span>All transcript sources</span>
+                  <span class="badge is-green">${savedVocabularyCount} saved</span>
+                </div>
+              </button>
+            `
+            : ""
+        }
+        ${
           sessions.length === 0
             ? buildStateMarkup(t("common.noSessionsMatch"))
             : sessions
                 .map((session) => {
-                  const isSelected = session.sessionId === state.selectedSessionId
+                  const isSelected =
+                    (!includeSavedVocabulary || state.vocabularySourceMode !== "saved") &&
+                    session.sessionId === state.selectedSessionId
                   return `
                     <button
                       type="button"
@@ -1199,7 +1281,7 @@ const renderDashboardView = () => {
   `
 }
 
-const buildLearningPathMarkup = (session, detail = null) => {
+const buildLegacyLearningPathMarkup = (session, detail = null) => {
   const sessionId = session.sessionId
   const transcriptText = detail?.rawText ?? session.rawText ?? ""
   const hasTranscript = Boolean(transcriptText || session.wordCount > 0)
@@ -1459,6 +1541,590 @@ const buildLearningPathMarkup = (session, detail = null) => {
                     <strong>${escapeHtml(phase.target)}</strong>
                   </div>
                 </div>
+                ${buildCriteria(phase.criteria)}
+                ${
+                  canClick
+                    ? `
+                      <button
+                        type="button"
+                        class="button-text learning-step-action"
+                        data-learning-action="${phase.action}"
+                        data-learning-session="${sessionId}"
+                      >
+                        ${escapeHtml(phase.actionLabel)}
+                      </button>
+                    `
+                    : ""
+                }
+              </article>
+            `
+          })
+          .join("")}
+      </div>
+      ${
+        isTranscriptExpanded && transcriptText
+          ? `
+            <div class="learning-transcript-preview">
+              <span class="question-index">${escapeHtml(t("learningPath.transcriptPreview"))}</span>
+              <p>${escapeHtml(transcriptText)}</p>
+            </div>
+          `
+          : ""
+      }
+    </section>
+  `
+}
+
+const buildLearningPathMarkup = (session, detail = null) => {
+  const sessionId = session.sessionId
+  const transcriptText = detail?.rawText ?? session.rawText ?? ""
+  const transcriptWordCount = Number(session.wordCount ?? 0)
+  const hasTranscript = Boolean(transcriptText || transcriptWordCount > 0)
+  const toMetricNumber = (value) => {
+    if (value === null || value === undefined || value === "") {
+      return null
+    }
+    const number = Number(value)
+    return Number.isFinite(number) ? number : null
+  }
+  const accuracyScore = toMetricNumber(session.accuracyScore)
+  const hasShadowing = accuracyScore !== null
+  const attempts = state.attemptHistoryBySessionId.get(sessionId) ?? []
+  const submittedAttempt =
+    state.currentQuizId && state.quizSessionId === sessionId
+      ? state.submittedAttemptByQuizId.get(state.currentQuizId)
+      : null
+  const latestAttempt = submittedAttempt ?? attempts[0] ?? null
+  const submittedAttemptAlreadyInHistory =
+    submittedAttempt && attempts.some((attempt) => attempt.attempt_id === submittedAttempt.attempt_id)
+  const attemptCount = attempts.length + (submittedAttempt && !submittedAttemptAlreadyInHistory ? 1 : 0)
+  const hasAttempt = Boolean(latestAttempt)
+  const latestQuiz = state.quizzesBySessionId.get(sessionId)
+  const quizQuestionCount =
+    state.quizSessionId === sessionId && state.currentQuizQuestions.length > 0
+      ? state.currentQuizQuestions.length
+      : latestQuiz?.questions?.length ?? 0
+  const hasQuiz =
+    quizQuestionCount > 0 ||
+    session.quizStatus === "Quiz Generated" ||
+    state.quizzesBySessionId.has(sessionId)
+  const latestScore = toMetricNumber(latestAttempt?.score)
+  const latestTotalQuestions = Number(latestAttempt?.total_questions ?? quizQuestionCount ?? 0)
+  const latestCorrectCount = Number(latestAttempt?.correct_count ?? 0)
+  const wrongCount =
+    latestAttempt === null
+      ? null
+      : Math.max(0, latestTotalQuestions - latestCorrectCount)
+  const attemptResults = Array.isArray(latestAttempt?.results) ? latestAttempt.results : []
+  const wrongResultCount =
+    attemptResults.length > 0
+      ? attemptResults.filter((result) => !result.is_correct).length
+      : wrongCount
+  const explanationCount = attemptResults.filter((result) => Boolean(result.explanation)).length
+  const hasExplanationFeedback = latestAttempt !== null && (wrongCount === 0 || explanationCount > 0)
+  const hasReviewedMistakes =
+    latestAttempt !== null && (wrongCount === 0 || state.reviewedAttemptSessionIds.has(sessionId))
+  const vocabularyItems = state.vocabularyBySessionId.get(sessionId) ?? []
+  const savedVocabularyCount = vocabularyItems.filter((item) => item.isSaved).length
+  const hasVocabularyLoaded = state.vocabularyBySessionId.has(sessionId)
+  const vocabQuizQuestions = state.vocabQuizBySessionId.get(sessionId) ?? []
+  const vocabQuizAnswers = state.vocabQuizAnswersBySessionId.get(sessionId) ?? {}
+  const answeredVocabQuizCount = Object.keys(vocabQuizAnswers).length
+  const hasCompletedVocabQuiz =
+    vocabQuizQuestions.length > 0 && answeredVocabQuizCount >= vocabQuizQuestions.length
+  const savedVocabularyTarget = 3
+  const isReflected = state.reflectedSessionIds.has(sessionId)
+  const accuracyReady = hasShadowing && accuracyScore >= 85
+  const quizScoreReady = latestScore !== null && latestScore >= 80
+  const evidenceSignals = [
+    hasTranscript,
+    hasShadowing,
+    hasQuiz,
+    hasAttempt,
+    hasVocabularyLoaded,
+  ]
+  const evidenceCount = evidenceSignals.filter(Boolean).length
+  const confidencePercent = Math.round((evidenceCount / evidenceSignals.length) * 100)
+  const confidenceLabel =
+    confidencePercent >= 80
+      ? localize("High", "Cao")
+      : confidencePercent >= 50
+        ? localize("Medium", "Trung bình")
+        : localize("Low", "Thấp")
+  const clampScore = (score, weight) => Math.min(weight, Math.max(0, score))
+  const dataStateLabel = (stateName) => {
+    if (stateName === "measured") {
+      return localize("Measured", "Đã đo")
+    }
+    if (stateName === "partial") {
+      return localize("Partial", "Thiếu một phần")
+    }
+    return localize("Missing data", "Thiếu dữ liệu")
+  }
+  const buildCriteria = (items) => {
+    return `
+      <ul class="learning-criteria">
+        ${items
+          .map((item) => {
+            return `
+              <li class="${item.done ? "is-done" : ""}">
+                <span aria-hidden="true">${item.done ? "&#10003;" : "&middot;"}</span>
+                ${escapeHtml(item.label)}
+              </li>
+            `
+          })
+          .join("")}
+      </ul>
+    `
+  }
+  const buildDataList = (items) => {
+    return `
+      <dl class="learning-data-list">
+        ${items
+          .map((item) => {
+            return `
+              <div>
+                <dt>${escapeHtml(item.label)}</dt>
+                <dd>${escapeHtml(item.value)}</dd>
+              </div>
+            `
+          })
+          .join("")}
+      </dl>
+    `
+  }
+  const buildDecision = () => {
+    if (!hasTranscript) {
+      return {
+        phaseKey: "input",
+        title: localize("Create transcript evidence first", "Cần có transcript trước"),
+        reason: localize(
+          "The loop cannot start until the session has a transcript or word count.",
+          "Lộ trình chưa thể bắt đầu khi buổi học chưa có transcript hoặc số từ.",
+        ),
+        action: null,
+        actionLabel: "",
+        tone: "missing",
+      }
+    }
+    if (!hasShadowing) {
+      return {
+        phaseKey: "input",
+        title: localize("Measure focused listening", "Đo phần nghe tập trung"),
+        reason: localize(
+          "Read the transcript, listen again, then record accuracy before moving to recall.",
+          "Đọc transcript, nghe lại, rồi ghi nhận accuracy trước khi chuyển sang gợi nhớ.",
+        ),
+        action: "transcript",
+        actionLabel: t("learningPath.review"),
+        tone: "next",
+      }
+    }
+    if (accuracyScore < 85) {
+      return {
+        phaseKey: "input",
+        title: localize("Repeat input before testing", "Luyện lại input trước khi kiểm tra"),
+        reason: localize(
+          `Listening accuracy is ${formatPercent(accuracyScore)}, below the 85% readiness target.`,
+          `Accuracy nghe là ${formatPercent(accuracyScore)}, chưa đạt mốc sẵn sàng 85%.`,
+        ),
+        action: "transcript",
+        actionLabel: t("learningPath.review"),
+        tone: "warning",
+      }
+    }
+    if (!hasQuiz) {
+      return {
+        phaseKey: "recall",
+        title: localize("Generate active recall questions", "Tạo câu hỏi gợi nhớ chủ động"),
+        reason: localize(
+          "Input is stable enough. Now test comprehension before showing explanations.",
+          "Phần input đã đủ ổn. Bây giờ nên kiểm tra hiểu bài trước khi xem explanation.",
+        ),
+        action: "generate-quiz",
+        actionLabel: t("learningPath.generate"),
+        tone: "next",
+      }
+    }
+    if (!hasAttempt) {
+      return {
+        phaseKey: "recall",
+        title: localize("Submit one quiz attempt", "Nộp một lần làm quiz"),
+        reason: localize(
+          "The generated quiz becomes learning evidence only after the learner answers it.",
+          "Quiz chỉ trở thành dữ liệu học tập sau khi người học trả lời và nộp bài.",
+        ),
+        action: "quiz",
+        actionLabel: t("learningPath.open"),
+        tone: "next",
+      }
+    }
+    if (wrongCount > 0 && !hasReviewedMistakes) {
+      return {
+        phaseKey: "feedback",
+        title: localize("Review wrong answers before retake", "Xem lỗi sai trước khi làm lại"),
+        reason: localize(
+          `${wrongResultCount} wrong answer(s) still need explanation-based correction.`,
+          `Còn ${wrongResultCount} câu sai cần sửa bằng explanation.`,
+        ),
+        action: "attempts",
+        actionLabel: t("learningPath.review"),
+        tone: "warning",
+      }
+    }
+    if (!quizScoreReady) {
+      return {
+        phaseKey: "recall",
+        title: localize("Retake after feedback", "Làm lại sau khi sửa lỗi"),
+        reason: localize(
+          `Latest quiz score is ${formatPercent(latestScore)}; target is 80%+ for this loop.`,
+          `Điểm quiz mới nhất là ${formatPercent(latestScore)}; mục tiêu của vòng này là từ 80%.`,
+        ),
+        action: "quiz",
+        actionLabel: localize("Retake", "Làm lại"),
+        tone: "warning",
+      }
+    }
+    if (!hasVocabularyLoaded) {
+      return {
+        phaseKey: "consolidation",
+        title: localize("Extract vocabulary from this transcript", "Trích từ vựng từ transcript này"),
+        reason: localize(
+          "Comprehension is acceptable; now consolidate useful words from the same context.",
+          "Mức hiểu bài đã ổn; tiếp theo nên củng cố từ hữu ích trong đúng ngữ cảnh này.",
+        ),
+        action: "vocabulary",
+        actionLabel: t("learningPath.open"),
+        tone: "next",
+      }
+    }
+    if (savedVocabularyCount < savedVocabularyTarget) {
+      return {
+        phaseKey: "consolidation",
+        title: localize("Save the words worth reviewing", "Lưu các từ đáng ôn lại"),
+        reason: localize(
+          `${savedVocabularyCount}/${savedVocabularyTarget} target words saved. Save only words that block meaning or recur.`,
+          `Đã lưu ${savedVocabularyCount}/${savedVocabularyTarget} từ mục tiêu. Chỉ lưu từ cản hiểu hoặc hay lặp lại.`,
+        ),
+        action: "vocabulary",
+        actionLabel: t("learningPath.open"),
+        tone: "next",
+      }
+    }
+    if (!hasCompletedVocabQuiz) {
+      return {
+        phaseKey: "consolidation",
+        title: localize("Recall saved vocabulary without looking", "Tự nhớ từ đã lưu khi không nhìn đáp án"),
+        reason: localize(
+          `Vocabulary check progress is ${answeredVocabQuizCount}/${vocabQuizQuestions.length || savedVocabularyCount}.`,
+          `Tiến độ vocabulary check là ${answeredVocabQuizCount}/${vocabQuizQuestions.length || savedVocabularyCount}.`,
+        ),
+        action: "vocab-quiz",
+        actionLabel: t("learningPath.start"),
+        tone: "next",
+      }
+    }
+    if (!isReflected) {
+      return {
+        phaseKey: "reflection",
+        title: localize("Read the trend before moving on", "Xem xu hướng trước khi sang bài mới"),
+        reason: localize(
+          "The loop is complete. Use the dashboard to decide whether this skill is improving.",
+          "Vòng học đã đủ. Dùng dashboard để biết kỹ năng này có đang tiến bộ không.",
+        ),
+        action: "dashboard",
+        actionLabel: t("learningPath.track"),
+        tone: "next",
+      }
+    }
+    return {
+      phaseKey: "reflection",
+      title: localize("Ready for the next focused session", "Sẵn sàng sang buổi học tiếp theo"),
+      reason: localize(
+        "Input, recall, feedback, consolidation, and reflection all have supporting evidence.",
+        "Input, gợi nhớ, sửa lỗi, củng cố và phản tư đều đã có dữ liệu hỗ trợ.",
+      ),
+      action: "dashboard",
+      actionLabel: t("learningPath.track"),
+      tone: "done",
+    }
+  }
+
+  const phases = [
+    {
+      key: "input",
+      phase: localize("Input", "Tiếp nhận"),
+      title: localize("Transcript and focused listening", "Transcript và nghe tập trung"),
+      principle: localize("Comprehensible input", "Input hiểu được"),
+      method: localize(
+        "Build a clear mental model from the transcript, then verify what was actually heard.",
+        "Tạo mô hình nghĩa rõ từ transcript, rồi kiểm chứng phần thật sự nghe được.",
+      ),
+      dataState: hasTranscript && hasShadowing ? "measured" : hasTranscript ? "partial" : "missing",
+      evidenceRows: [
+        { label: localize("Transcript", "Transcript"), value: hasTranscript ? localize("Available", "Đã có") : localize("Missing", "Chưa có") },
+        { label: localize("Length", "Độ dài"), value: formatWordCount(transcriptWordCount) },
+        { label: localize("Listening accuracy", "Accuracy nghe"), value: formatPercent(accuracyScore) },
+      ],
+      target: localize("Transcript loaded and listening accuracy at least 85%.", "Có transcript và accuracy nghe từ 85% trở lên."),
+      criteria: [
+        { label: localize("Transcript available", "Có transcript"), done: hasTranscript },
+        { label: localize("Listening accuracy recorded", "Đã ghi nhận accuracy"), done: hasShadowing },
+        { label: localize("Accuracy target 85%+", "Accuracy đạt 85%+"), done: accuracyReady },
+      ],
+      score: clampScore((hasTranscript ? 10 : 0) + (hasShadowing ? 8 : 0) + (accuracyReady ? 7 : 0), 25),
+      weight: 25,
+      locked: !hasTranscript,
+      action: hasTranscript ? "transcript" : null,
+      actionLabel: t("learningPath.review"),
+    },
+    {
+      key: "recall",
+      phase: localize("Active recall", "Gợi nhớ chủ động"),
+      title: localize("Reading quiz attempt", "Làm quiz đọc hiểu"),
+      principle: localize("Retrieval practice", "Gợi nhớ chủ động"),
+      method: localize(
+        "Use retrieval practice: answer before seeing explanations.",
+        "Dùng gợi nhớ chủ động: trả lời trước khi xem explanation.",
+      ),
+      dataState: hasQuiz && hasAttempt ? "measured" : hasQuiz ? "partial" : "missing",
+      evidenceRows: [
+        { label: localize("Questions", "Số câu"), value: String(quizQuestionCount || 0) },
+        { label: localize("Attempts", "Lần làm"), value: String(attemptCount) },
+        { label: localize("Latest score", "Điểm mới nhất"), value: formatPercent(latestScore) },
+      ],
+      target: localize("Generate quiz, submit one attempt, and reach 80%+.", "Tạo quiz, nộp một lần làm và đạt từ 80% trở lên."),
+      criteria: [
+        { label: localize("Quiz generated", "Đã sinh quiz"), done: hasQuiz },
+        { label: localize("Attempt submitted", "Đã nộp bài"), done: hasAttempt },
+        { label: localize("Score target 80%+", "Điểm đạt 80%+"), done: quizScoreReady },
+      ],
+      score: clampScore((hasQuiz ? 8 : 0) + (hasAttempt ? 10 : 0) + (quizScoreReady ? 7 : 0), 25),
+      weight: 25,
+      locked: !hasTranscript,
+      action: hasQuiz ? "quiz" : "generate-quiz",
+      actionLabel: hasQuiz ? t("learningPath.open") : t("learningPath.generate"),
+    },
+    {
+      key: "feedback",
+      phase: localize("Feedback", "Sửa lỗi"),
+      title: localize("Mistake review", "Xem và sửa lỗi sai"),
+      principle: localize("Corrective feedback", "Phản hồi sửa lỗi"),
+      method: localize(
+        "Turn wrong answers into corrected rules, with explanations as the evidence.",
+        "Biến đáp án sai thành quy tắc đã sửa, dùng explanation làm bằng chứng.",
+      ),
+      dataState: hasAttempt && hasExplanationFeedback ? "measured" : hasAttempt ? "partial" : "missing",
+      evidenceRows: [
+        {
+          label: localize("Wrong answers", "Câu sai"),
+          value: wrongCount === null ? "--" : String(wrongResultCount),
+        },
+        {
+          label: localize("Explanations", "Explanation"),
+          value: hasAttempt ? String(explanationCount) : "--",
+        },
+        {
+          label: localize("Review status", "Trạng thái sửa lỗi"),
+          value: hasReviewedMistakes ? localize("Reviewed", "Đã xem") : localize("Pending", "Chưa xong"),
+        },
+      ],
+      target: localize("Review every wrong answer and explanation.", "Xem lại từng câu sai và explanation."),
+      criteria: [
+        { label: localize("Attempt history exists", "Có lịch sử làm bài"), done: hasAttempt },
+        { label: localize("Explanations available", "Có explanation để sửa lỗi"), done: hasExplanationFeedback },
+        { label: localize("Wrong answers reviewed", "Đã xem lỗi sai"), done: hasReviewedMistakes },
+      ],
+      score: clampScore((hasAttempt ? 7 : 0) + (hasExplanationFeedback ? 5 : 0) + (hasReviewedMistakes ? 8 : 0), 20),
+      weight: 20,
+      locked: !hasAttempt,
+      action: hasAttempt ? "attempts" : null,
+      actionLabel: t("learningPath.review"),
+    },
+    {
+      key: "consolidation",
+      phase: localize("Consolidation", "Củng cố"),
+      title: localize("Vocabulary bank and mini quiz", "Từ vựng và mini quiz"),
+      principle: localize("Elaboration and spaced recall", "Đào sâu nghĩa và ôn cách quãng"),
+      method: localize(
+        "Save difficult words, then recall them without looking at the bank.",
+        "Lưu từ khó, sau đó tự nhớ lại mà không nhìn word bank.",
+      ),
+      dataState: hasVocabularyLoaded && savedVocabularyCount >= savedVocabularyTarget && hasCompletedVocabQuiz
+        ? "measured"
+        : hasVocabularyLoaded
+          ? "partial"
+          : "missing",
+      evidenceRows: [
+        { label: localize("Extracted", "Đã trích"), value: String(vocabularyItems.length) },
+        { label: localize("Saved", "Đã lưu"), value: `${savedVocabularyCount}/${savedVocabularyTarget}` },
+        {
+          label: localize("Mini quiz", "Mini quiz"),
+          value: `${answeredVocabQuizCount}/${vocabQuizQuestions.length || savedVocabularyCount || 0}`,
+        },
+      ],
+      target: localize("Save at least 3 useful words and finish vocabulary check.", "Lưu ít nhất 3 từ hữu ích và hoàn thành vocabulary check."),
+      criteria: [
+        { label: localize("Vocabulary extracted", "Đã trích từ vựng"), done: hasVocabularyLoaded },
+        {
+          label: localize(`Save ${savedVocabularyTarget}+ words`, `Lưu ${savedVocabularyTarget}+ từ`),
+          done: savedVocabularyCount >= savedVocabularyTarget,
+        },
+        { label: localize("Mini quiz completed", "Hoàn thành mini quiz"), done: hasCompletedVocabQuiz },
+      ],
+      score: clampScore(
+        (hasVocabularyLoaded ? 5 : 0) +
+          Math.min(savedVocabularyCount, savedVocabularyTarget) * (10 / savedVocabularyTarget) +
+          (hasCompletedVocabQuiz ? 5 : 0),
+        20,
+      ),
+      weight: 20,
+      locked: !hasTranscript,
+      action: savedVocabularyCount > 0 || vocabularyItems.length > 0 ? "vocab-quiz" : "vocabulary",
+      actionLabel: savedVocabularyCount > 0 ? t("learningPath.start") : t("learningPath.open"),
+    },
+    {
+      key: "reflection",
+      phase: localize("Reflection", "Phản tư"),
+      title: localize("Progress decision", "Quyết định bước tiếp theo"),
+      principle: localize("Metacognition", "Tự đánh giá"),
+      method: localize(
+        "Use trend data to decide whether to repeat, retake, or move on.",
+        "Dựa vào xu hướng để quyết định luyện lại, làm lại quiz hay học bài mới.",
+      ),
+      dataState: isReflected ? "measured" : hasAttempt ? "partial" : "missing",
+      evidenceRows: [
+        {
+          label: localize("Analytics", "Analytics"),
+          value: hasAttempt ? localize("Attempt saved", "Đã lưu lần làm") : localize("No attempt", "Chưa có lần làm"),
+        },
+        { label: localize("Evidence confidence", "Độ tin cậy dữ liệu"), value: `${confidenceLabel} (${confidencePercent}%)` },
+        { label: localize("Dashboard", "Dashboard"), value: isReflected ? localize("Checked", "Đã xem") : localize("Pending", "Chưa xem") },
+      ],
+      target: localize("Check dashboard after the feedback loop.", "Xem dashboard sau vòng sửa lỗi."),
+      criteria: [
+        { label: localize("Attempt contributes to analytics", "Lần làm đóng góp vào analytics"), done: hasAttempt },
+        { label: localize("Enough evidence for a decision", "Đủ dữ liệu để ra quyết định"), done: confidencePercent >= 60 },
+        { label: localize("Dashboard checked", "Đã xem dashboard"), done: isReflected },
+      ],
+      score: clampScore((hasAttempt ? 3 : 0) + (confidencePercent >= 60 ? 3 : 0) + (isReflected ? 4 : 0), 10),
+      weight: 10,
+      locked: !hasAttempt,
+      action: "dashboard",
+      actionLabel: t("learningPath.track"),
+    },
+  ]
+
+  const decision = buildDecision()
+  const totalWeight = phases.reduce((total, phase) => total + phase.weight, 0)
+  const earnedWeight = phases.reduce((total, phase) => total + Math.min(phase.score, phase.weight), 0)
+  const progressPercent = Math.round((earnedWeight / totalWeight) * 100)
+  const nextPhaseIndex = phases.findIndex((phase) => !phase.locked && phase.score < phase.weight)
+  const recommendedPhase =
+    phases.find((phase) => phase.key === decision.phaseKey) ??
+    phases[nextPhaseIndex === -1 ? phases.length - 1 : nextPhaseIndex]
+  const isTranscriptExpanded = state.expandedTranscriptSessionIds.has(sessionId)
+  const getStatusLabel = (status) => {
+    if (status === "done") {
+      return t("learningPath.done")
+    }
+    if (status === "next") {
+      return t("learningPath.next")
+    }
+    if (status === "locked") {
+      return t("learningPath.locked")
+    }
+    return t("learningPath.ready")
+  }
+
+  return `
+    <section class="learning-path learning-cycle" aria-label="${escapeHtml(t("learningPath.title"))}">
+      <div class="learning-path-header">
+        <div>
+          <span class="eyebrow">${escapeHtml(t("learningPath.title"))}</span>
+          <h3>${escapeHtml(decision.title)}</h3>
+          <p class="panel-subtext">${escapeHtml(localize(
+            "Scientific loop: input, active recall, feedback, consolidation, then reflection.",
+            "Vòng học chuẩn: input, gợi nhớ chủ động, phản hồi sửa lỗi, củng cố rồi phản tư.",
+          ))}</p>
+        </div>
+        <div class="learning-path-progress" aria-label="${progressPercent}% ${escapeHtml(t("learningPath.progress"))}">
+          <span>${escapeHtml(localize("Evidence mastery", "Mức chứng cứ"))}</span>
+          <strong>${progressPercent}%</strong>
+          <div class="learning-path-meter" aria-hidden="true">
+            <span style="width: ${progressPercent}%"></span>
+          </div>
+        </div>
+      </div>
+      <div class="learning-decision-panel is-${decision.tone}">
+        <div class="learning-decision-main">
+          <span>${escapeHtml(localize("Recommended next action", "Hành động nên làm tiếp"))}</span>
+          <strong>${escapeHtml(`${recommendedPhase.phase}: ${decision.title}`)}</strong>
+          <p>${escapeHtml(decision.reason)}</p>
+        </div>
+        <div class="learning-decision-kpis">
+          <div>
+            <span>${escapeHtml(localize("Data confidence", "Độ tin cậy"))}</span>
+            <strong>${escapeHtml(`${confidenceLabel} ${confidencePercent}%`)}</strong>
+          </div>
+          <div>
+            <span>${escapeHtml(localize("Listening", "Nghe"))}</span>
+            <strong>${escapeHtml(formatPercent(accuracyScore))}</strong>
+          </div>
+          <div>
+            <span>${escapeHtml(localize("Quiz", "Quiz"))}</span>
+            <strong>${escapeHtml(formatPercent(latestScore))}</strong>
+          </div>
+        </div>
+        ${
+          decision.action
+            ? `
+              <button
+                type="button"
+                class="button-primary learning-decision-action"
+                data-learning-action="${decision.action}"
+                data-learning-session="${sessionId}"
+              >
+                ${escapeHtml(decision.actionLabel)}
+              </button>
+            `
+            : ""
+        }
+      </div>
+      <div class="learning-cycle-list">
+        ${phases
+          .map((phase, index) => {
+            const status =
+              phase.locked
+                ? "locked"
+                : phase.score >= phase.weight
+                  ? "done"
+                  : phase.key === recommendedPhase.key || index === nextPhaseIndex
+                    ? "next"
+                    : "ready"
+            const canClick = Boolean(phase.action) && status !== "locked"
+            const phasePercent = Math.round((Math.min(phase.score, phase.weight) / phase.weight) * 100)
+            return `
+              <article class="learning-phase is-${status}" data-phase="${phase.key}">
+                <div class="learning-phase-top">
+                  <span class="learning-step-index">${index + 1}</span>
+                  <div>
+                    <span class="learning-phase-label">${escapeHtml(phase.phase)}</span>
+                    <h4>${escapeHtml(phase.title)}</h4>
+                  </div>
+                  <span class="badge">${escapeHtml(getStatusLabel(status))}</span>
+                </div>
+                <div class="learning-principle-row">
+                  <span>${escapeHtml(localize("Learning principle", "Nguyên tắc học"))}</span>
+                  <strong>${escapeHtml(phase.principle)}</strong>
+                  <em class="learning-data-state is-${phase.dataState}">${escapeHtml(dataStateLabel(phase.dataState))}</em>
+                </div>
+                <p class="learning-method">${escapeHtml(phase.method)}</p>
+                <div class="learning-phase-meter" aria-hidden="true">
+                  <span style="width: ${phasePercent}%"></span>
+                </div>
+                ${buildDataList(phase.evidenceRows)}
+                <p class="learning-target"><span>${escapeHtml(localize("Target", "Tiêu chí"))}</span>${escapeHtml(phase.target)}</p>
                 ${buildCriteria(phase.criteria)}
                 ${
                   canClick
@@ -1798,6 +2464,70 @@ const buildReadingQuestionCards = (submittedAttempt) => {
     .join("")
 }
 
+const buildAttemptReviewCards = (results) => {
+  if (!Array.isArray(results) || results.length === 0) {
+    return `<div class="attempt-review-card"><p class="quiz-save-note">No question details were saved for this attempt.</p></div>`
+  }
+
+  return results
+    .map((result, index) => {
+      const selectedLabel = result.selected_answer ?? null
+      const correctLabel = result.correct_answer
+      const selectedCopy = selectedLabel ? result.options?.[selectedLabel] ?? "" : ""
+      const correctCopy = result.options?.[correctLabel] ?? ""
+      const optionMarkup = Object.entries(result.options ?? {})
+        .map(([label, value]) => {
+          const isSelected = label === selectedLabel
+          const isCorrect = label === correctLabel
+          const rowClass = isCorrect
+            ? "is-correct"
+            : isSelected
+              ? "is-incorrect"
+              : ""
+          const tagMarkup = [
+            isSelected ? "Your choice" : "",
+            isCorrect ? "Correct answer" : "",
+          ]
+            .filter(Boolean)
+            .map((tag) => `<span class="attempt-option-tag">${escapeHtml(tag)}</span>`)
+            .join("")
+
+          return `
+            <div class="attempt-option-row ${rowClass}">
+              <span class="option-label">${escapeHtml(label)}</span>
+              <span class="option-copy">${escapeHtml(value)}</span>
+              <span class="attempt-option-tags">${tagMarkup}</span>
+            </div>
+          `
+        })
+        .join("")
+
+      return `
+        <article class="attempt-review-card ${result.is_correct ? "is-correct" : "is-incorrect"}">
+          <div class="attempt-review-heading">
+            <span class="question-index">Question ${index + 1}</span>
+            <span class="result-badge ${result.is_correct ? "is-correct" : "is-incorrect"}">
+              ${result.is_correct ? "Correct" : "Review"}
+            </span>
+          </div>
+          <h4>${escapeHtml(result.question)}</h4>
+          <div class="attempt-option-list">${optionMarkup}</div>
+          <div class="answer-line">
+            <strong>Your answer</strong>
+            <span class="answer-badge">${escapeHtml(selectedLabel ? `${selectedLabel}. ${selectedCopy}` : "--")}</span>
+            <strong>Correct answer</strong>
+            <span class="answer-badge">${escapeHtml(`${correctLabel}. ${correctCopy}`)}</span>
+          </div>
+          <div class="explanation-line">
+            <strong>Explanation</strong>
+            <p class="explanation-copy">${escapeHtml(result.explanation)}</p>
+          </div>
+        </article>
+      `
+    })
+    .join("")
+}
+
 const buildAttemptHistoryMarkup = (sessionId) => {
   const isLoading = state.loadingAttemptHistorySessionIds.has(sessionId)
   const error = state.attemptHistoryErrorsBySessionId.get(sessionId)
@@ -1815,7 +2545,6 @@ const buildAttemptHistoryMarkup = (sessionId) => {
 
   const activeAttemptId = state.activeAttemptIdBySessionId.get(sessionId) ?? history[0].attempt_id
   const activeAttempt = history.find((attempt) => attempt.attempt_id === activeAttemptId) ?? history[0]
-  const wrongResults = activeAttempt.results.filter((result) => !result.is_correct)
 
   return `
     <div class="attempt-layout">
@@ -1850,22 +2579,7 @@ const buildAttemptHistoryMarkup = (sessionId) => {
           <h3 class="card-title">${escapeHtml(formatPercent(activeAttempt.score))} score</h3>
           <p class="state-copy">${activeAttempt.correct_count}/${activeAttempt.total_questions} answers correct.</p>
         </div>
-        ${
-          wrongResults.length === 0
-            ? `<div class="attempt-review-card"><p class="quiz-save-note">All answers were correct.</p></div>`
-            : wrongResults
-                .map((result, index) => {
-                  return `
-                    <article class="attempt-review-card">
-                      <span class="question-index">Review ${index + 1}</span>
-                      <h4>${escapeHtml(result.question)}</h4>
-                      <p>Your answer <strong>${escapeHtml(result.selected_answer ?? "--")}</strong>, correct answer <strong>${escapeHtml(result.correct_answer)}</strong>.</p>
-                      <p>${escapeHtml(result.explanation)}</p>
-                    </article>
-                  `
-                })
-                .join("")
-        }
+        ${buildAttemptReviewCards(activeAttempt.results)}
       </div>
     </div>
   `
@@ -1873,6 +2587,7 @@ const buildAttemptHistoryMarkup = (sessionId) => {
 
 const renderSessionsView = () => {
   const panel = elements.panels.sessions
+  const scrollSnapshot = captureScrollSnapshot(panel)
   panel.innerHTML = `
     <div class="toolbar">
       <label class="control-field">
@@ -1898,22 +2613,27 @@ const renderSessionsView = () => {
       ${buildStudyBoard()}
     </div>
   `
+  restoreScrollSnapshot(panel, scrollSnapshot)
 }
 
 const renderQuizHistoryView = () => {
   const panel = elements.panels["quiz-history"]
+  const scrollSnapshot = captureScrollSnapshot(panel)
   if (state.sessionsState === "loading") {
     panel.innerHTML = buildLoadingMarkup(t("quizHistory.loadingSessions"))
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
   if (state.quizHistoryState === "loading") {
     panel.innerHTML = buildLoadingMarkup(t("quizHistory.loading"))
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
   if (state.quizHistoryState === "error") {
     panel.innerHTML = buildStateMarkup(state.quizHistoryError || t("quizHistory.error"), {
       error: true,
     })
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
   if (state.quizHistoryState === "empty") {
@@ -1923,18 +2643,19 @@ const renderQuizHistoryView = () => {
         <button class="button-primary" type="button" data-load-quiz-history>${escapeHtml(t("quizHistory.load"))}</button>
       </div>
     `
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
 
   if (state.quizAttempts.length === 0) {
     panel.innerHTML = buildStateMarkup(t("quizHistory.noAttempts"))
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
 
   const activeAttempt =
     state.quizAttempts.find((attempt) => attempt.attempt_id === state.activeGlobalAttemptId) ??
     state.quizAttempts[0]
-  const wrongResults = activeAttempt.results.filter((result) => !result.is_correct)
 
   panel.innerHTML = `
     <div class="attempt-layout">
@@ -1964,25 +2685,11 @@ const renderQuizHistoryView = () => {
             <button type="button" class="button-ghost" data-open-session="${activeAttempt.sessionId}">Open Session</button>
           </div>
         </div>
-        ${
-          wrongResults.length === 0
-            ? `<div class="attempt-review-card"><p class="quiz-save-note">All answers were correct.</p></div>`
-            : wrongResults
-                .map((result, index) => {
-                  return `
-                    <article class="attempt-review-card">
-                      <span class="question-index">Review ${index + 1}</span>
-                      <h4>${escapeHtml(result.question)}</h4>
-                      <p>Your answer <strong>${escapeHtml(result.selected_answer ?? "--")}</strong>, correct answer <strong>${escapeHtml(result.correct_answer)}</strong>.</p>
-                      <p>${escapeHtml(result.explanation)}</p>
-                    </article>
-                  `
-                })
-                .join("")
-        }
+        ${buildAttemptReviewCards(activeAttempt.results)}
       </div>
     </div>
   `
+  restoreScrollSnapshot(panel, scrollSnapshot)
 }
 
 const getVocabularyForSelectedSession = () => {
@@ -1991,11 +2698,20 @@ const getVocabularyForSelectedSession = () => {
     : []
 }
 
+const getVocabularySourceItems = () => {
+  return state.vocabularySourceMode === "saved"
+    ? getSavedVocabularyItems()
+    : getVocabularyForSelectedSession()
+}
+
 const getFilteredVocabulary = () => {
   const query = state.wordSearchTerm.trim().toLowerCase()
-  return getVocabularyForSelectedSession().filter((item) => {
+  return getVocabularySourceItems().filter((item) => {
     const matchesQuery =
-      !query || `${item.term} ${item.definition} ${item.contextSentence}`.toLowerCase().includes(query)
+      !query ||
+      `${item.term} ${item.definition} ${item.contextSentence} ${item.sourceTitle ?? ""}`
+        .toLowerCase()
+        .includes(query)
     const matchesDifficulty =
       state.difficultyFilter === "all" || item.difficulty === state.difficultyFilter
     const matchesSaved = !state.savedOnly || item.isSaved
@@ -2005,7 +2721,8 @@ const getFilteredVocabulary = () => {
 
 const buildWordPanel = () => {
   const selectedSession = getSelectedSession()
-  if (!selectedSession) {
+  const isSavedSource = state.vocabularySourceMode === "saved"
+  if (!selectedSession && !isSavedSource) {
     return `
       <section class="word-panel content-card">
         ${buildStateMarkup("Select a transcript to extract vocabulary.")}
@@ -2013,70 +2730,96 @@ const buildWordPanel = () => {
     `
   }
 
-  const allItems = getVocabularyForSelectedSession()
+  const allItems = getVocabularySourceItems()
   const filteredItems = getFilteredVocabulary()
-  const isMasked = state.maskedVocabularySessionIds.has(selectedSession.sessionId)
+  const isMasked = selectedSession
+    ? state.maskedVocabularySessionIds.has(selectedSession.sessionId)
+    : false
   const content =
-    state.vocabularyState === "loading"
-      ? buildLoadingMarkup("Extracting vocabulary from transcript context.")
-      : state.vocabularyState === "error"
-        ? buildStateMarkup(state.vocabularyError || "Could not load vocabulary.", { error: true })
-        : allItems.length === 0
-          ? buildStateMarkup("No vocabulary candidates were found for this transcript.")
-        : filteredItems.length === 0
-            ? buildStateMarkup("No words match the current filters.")
-            : `
-              <div class="word-grid">
-                ${filteredItems
-                  .map((item) => {
-                    return `
-                      <article class="word-card">
-                        <div class="word-card-header">
-                          <div>
-                            <h3 class="word-term">${escapeHtml(item.term)}</h3>
-                            <div class="word-meta">
-                              <span class="badge ${getDifficultyBadgeClass(item.difficulty)}">${escapeHtml(item.difficulty)}</span>
-                              ${item.isSaved ? `<span class="badge is-green">Saved</span>` : ""}
+    isSavedSource && state.savedVocabularyState === "loading"
+      ? buildLoadingMarkup("Loading saved vocabulary from every transcript.")
+      : isSavedSource && state.savedVocabularyState === "error"
+        ? buildStateMarkup(state.savedVocabularyError || "Could not load saved vocabulary.", { error: true })
+        : state.vocabularyState === "loading" && !isSavedSource
+          ? buildLoadingMarkup("Extracting vocabulary from transcript context.")
+          : state.vocabularyState === "error" && !isSavedSource
+            ? buildStateMarkup(state.vocabularyError || "Could not load vocabulary.", { error: true })
+            : allItems.length === 0
+              ? buildStateMarkup(
+                  isSavedSource
+                    ? "No saved vocabulary yet. Save words from transcript sources first."
+                    : "No vocabulary candidates were found for this transcript.",
+                )
+              : filteredItems.length === 0
+                ? buildStateMarkup("No words match the current filters.")
+                : `
+                  <div class="word-grid">
+                    ${filteredItems
+                      .map((item) => {
+                        return `
+                          <article class="word-card">
+                            <div class="word-card-header">
+                              <div>
+                                <h3 class="word-term">${escapeHtml(item.term)}</h3>
+                                <div class="word-meta">
+                                  <span class="badge ${getDifficultyBadgeClass(item.difficulty)}">${escapeHtml(item.difficulty)}</span>
+                                  ${item.isSaved ? `<span class="badge is-green">Saved</span>` : ""}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                class="icon-button ${item.isSaved ? "is-active" : ""}"
+                                data-save-term="${encodeURIComponent(item.term)}"
+                                data-save-session="${item.sourceSessionId ?? selectedSession?.sessionId ?? ""}"
+                                aria-label="${item.isSaved ? `Unsave ${escapeHtml(item.term)}` : `Save ${escapeHtml(item.term)}`}"
+                                aria-pressed="${item.isSaved}"
+                                title="${item.isSaved ? "Unsave" : "Save"}"
+                              >
+                                ${buildStarIcon(item.isSaved)}
+                              </button>
                             </div>
-                          </div>
-                          <button
-                            type="button"
-                            class="icon-button ${item.isSaved ? "is-active" : ""}"
-                            data-save-term="${encodeURIComponent(item.term)}"
-                            aria-label="${item.isSaved ? `Unsave ${escapeHtml(item.term)}` : `Save ${escapeHtml(item.term)}`}"
-                            aria-pressed="${item.isSaved}"
-                            title="${item.isSaved ? "Unsave" : "Save"}"
-                          >
-                            ${buildStarIcon(item.isSaved)}
-                          </button>
-                        </div>
-                        <p class="word-definition">${escapeHtml(item.definition)}</p>
-                        <p class="word-context">${escapeHtml(item.contextSentence)}</p>
-                      </article>
-                    `
-                  })
-                  .join("")}
-              </div>
-            `
+                            <p class="word-definition">${escapeHtml(item.definition)}</p>
+                            <p class="word-context">${escapeHtml(item.contextSentence)}</p>
+                            ${
+                              isSavedSource
+                                ? `<p class="word-source-line">${escapeHtml(item.sourceTitle ?? "Unknown source")}</p>`
+                                : ""
+                            }
+                          </article>
+                        `
+                      })
+                      .join("")}
+                  </div>
+                `
 
   return `
     <section class="word-panel content-card">
       <div class="card-header">
         <div>
           <span class="eyebrow">Vocabulary Bank</span>
-          <h3 class="card-title">${escapeHtml(selectedSession.videoTitle)}</h3>
-          <p class="panel-subtext">${escapeHtml(String(allItems.length))} extracted words.</p>
+          <h3 class="card-title">${escapeHtml(isSavedSource ? "Saved Vocabulary" : selectedSession.videoTitle)}</h3>
+          <p class="panel-subtext">${escapeHtml(
+            isSavedSource
+              ? `${allItems.length} saved words across transcript sources.`
+              : `${allItems.length} extracted words.`,
+          )}</p>
         </div>
         <div class="inline-actions">
-          <button
-            type="button"
-            class="icon-button ${isMasked ? "is-active" : ""}"
-            data-toggle-vocab-mask
-            aria-label="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
-            title="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
-          >
-            ${buildEyeIcon(isMasked)}
-          </button>
+          ${
+            isSavedSource
+              ? ""
+              : `
+                <button
+                  type="button"
+                  class="icon-button ${isMasked ? "is-active" : ""}"
+                  data-toggle-vocab-mask
+                  aria-label="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
+                  title="${isMasked ? "Show vocabulary bank" : "Hide vocabulary bank"}"
+                >
+                  ${buildEyeIcon(isMasked)}
+                </button>
+              `
+          }
           <button type="button" class="button-ghost" data-refresh-vocabulary>Refresh</button>
         </div>
       </div>
@@ -2106,6 +2849,13 @@ const buildWordPanel = () => {
 
 const buildMiniQuizPanel = () => {
   const selectedSession = getSelectedSession()
+  if (state.vocabularySourceMode === "saved") {
+    return `
+      <aside class="mini-quiz-panel">
+        ${buildStateMarkup("Pick a transcript source to start a vocabulary mini quiz. Saved Vocabulary is a review bank.")}
+      </aside>
+    `
+  }
   if (!selectedSession) {
     return `
       <aside class="mini-quiz-panel">
@@ -2190,12 +2940,15 @@ const buildMiniQuizPanel = () => {
 
 const renderVocabularyView = () => {
   const panel = elements.panels.vocabulary
+  const scrollSnapshot = captureScrollSnapshot(panel)
   if (state.sessionsState === "loading") {
     panel.innerHTML = buildLoadingMarkup(t("vocab.loading"))
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
   if (state.sessions.length === 0) {
     panel.innerHTML = buildStateMarkup(t("vocab.empty"))
+    restoreScrollSnapshot(panel, scrollSnapshot)
     return
   }
 
@@ -2206,11 +2959,13 @@ const renderVocabularyView = () => {
         summary: t("vocab.sourceCopy"),
         collapsible: true,
         collapsed: state.isVocabularySourceCollapsed,
+        includeSavedVocabulary: true,
       })}
       ${buildWordPanel()}
       ${buildMiniQuizPanel()}
     </div>
   `
+  restoreScrollSnapshot(panel, scrollSnapshot)
 }
 
 const renderSettingsView = () => {
@@ -2609,6 +3364,7 @@ const selectSession = async (sessionId, { tab = null, replaceHistory = false, re
   if (state.quizSessionId !== sessionId) {
     clearCurrentQuizState()
   }
+  state.vocabularySourceMode = "session"
   state.wordSearchTerm = ""
   state.difficultyFilter = "all"
   state.savedOnly = false
@@ -2623,10 +3379,8 @@ const selectSession = async (sessionId, { tab = null, replaceHistory = false, re
   await Promise.allSettled([
     loadExistingQuizForSession(sessionId),
     loadAttemptHistoryForSession(sessionId),
+    loadVocabulary(sessionId),
   ])
-  if (state.activeView === "vocabulary") {
-    await loadVocabulary(sessionId)
-  }
   if (renderAfter) {
     renderAll()
   }
@@ -2799,8 +3553,49 @@ const loadVocabulary = async (sessionId, { force = false } = {}) => {
   renderVocabularyView()
 }
 
-const saveVocabularyItem = async (term) => {
-  const sessionId = state.selectedSessionId
+const loadAllVocabulary = async ({ force = false } = {}) => {
+  if (state.sessions.length === 0) {
+    return
+  }
+
+  const sessionIds = state.sessions.map((session) => session.sessionId)
+  const missingSessionIds = force
+    ? sessionIds
+    : sessionIds.filter((sessionId) => !state.vocabularyBySessionId.has(sessionId))
+  if (missingSessionIds.length === 0) {
+    state.savedVocabularyState = "ready"
+    renderVocabularyView()
+    return
+  }
+
+  state.savedVocabularyState = "loading"
+  state.savedVocabularyError = ""
+  renderVocabularyView()
+  try {
+    await Promise.all(
+      missingSessionIds.map(async (sessionId) => {
+        const response = await apiFetch(`/api/v1/sessions/${sessionId}/vocabulary`)
+        if (!response.ok) {
+          throw new Error(await extractErrorMessage(response))
+        }
+        const payload = await response.json()
+        const items = Array.isArray(payload.items)
+          ? payload.items.map(normalizeVocabularyItem)
+          : []
+        state.vocabularyBySessionId.set(sessionId, items)
+      }),
+    )
+    state.savedVocabularyState = "ready"
+  } catch (error) {
+    state.savedVocabularyState = "error"
+    state.savedVocabularyError =
+      error instanceof Error ? error.message : "Could not load saved vocabulary."
+  }
+  renderVocabularyView()
+}
+
+const saveVocabularyItem = async (term, sessionIdOverride = null) => {
+  const sessionId = sessionIdOverride ?? state.selectedSessionId
   if (!sessionId) {
     return
   }
@@ -3168,7 +3963,17 @@ const bindEvents = () => {
           ...state.selectedAnswersByQuestionId,
           [Number(target.dataset.questionId)]: target.value,
         }
-        renderSessionsView()
+        const questionCard = target.closest(".question-card")
+        if (questionCard) {
+          for (const row of questionCard.querySelectorAll(".option-row")) {
+            row.classList.toggle("is-selected", row.contains(target))
+          }
+        }
+        const submitButton = panel.querySelector("[data-submit-quiz]")
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.disabled = !hasAnsweredEveryQuestion()
+        }
+        panel.querySelector("[role='status']")?.remove()
         return
       }
       if (target instanceof HTMLInputElement && target.dataset.vocabQuestionIndex) {
@@ -3190,9 +3995,22 @@ const bindEvents = () => {
         return
       }
 
+      const savedVocabularyButton = target.closest("[data-select-saved-vocabulary]")
+      if (savedVocabularyButton) {
+        event.preventDefault()
+        state.vocabularySourceMode = "saved"
+        state.wordSearchTerm = ""
+        state.difficultyFilter = "all"
+        state.savedOnly = false
+        renderVocabularyView()
+        void loadAllVocabulary()
+        return
+      }
+
       const sessionButton = target.closest("[data-select-session]")
       if (sessionButton) {
         event.preventDefault()
+        state.vocabularySourceMode = "session"
         void selectSession(Number(sessionButton.dataset.selectSession), {
           replaceHistory: true,
         })
@@ -3321,9 +4139,13 @@ const bindEvents = () => {
       }
 
       const refreshVocabularyButton = target.closest("[data-refresh-vocabulary]")
-      if (refreshVocabularyButton && state.selectedSessionId) {
+      if (refreshVocabularyButton) {
         event.preventDefault()
-        void loadVocabulary(state.selectedSessionId, { force: true })
+        if (state.vocabularySourceMode === "saved") {
+          void loadAllVocabulary({ force: true })
+        } else if (state.selectedSessionId) {
+          void loadVocabulary(state.selectedSessionId, { force: true })
+        }
         return
       }
 
@@ -3348,7 +4170,11 @@ const bindEvents = () => {
       const saveButton = target.closest("[data-save-term]")
       if (saveButton) {
         event.preventDefault()
-        void saveVocabularyItem(decodeURIComponent(saveButton.dataset.saveTerm ?? ""))
+        const sessionId = Number(saveButton.dataset.saveSession)
+        void saveVocabularyItem(
+          decodeURIComponent(saveButton.dataset.saveTerm ?? ""),
+          Number.isFinite(sessionId) && sessionId > 0 ? sessionId : null,
+        )
         return
       }
 

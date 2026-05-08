@@ -6,9 +6,11 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app.business.interfaces.context_assist_provider import ContextAssistProvider
 from app.business.interfaces.llm_quiz_provider import LLMQuizProvider
 from app.business.services.ai_quiz_generation_service import QuizGenerationService
 from app.business.services.auth_service import AuthService
+from app.business.services.context_assist_service import ContextAssistService
 from app.business.interfaces.subtitle_provider import SubtitleProvider
 from app.business.services.lesson_service import LessonService
 from app.business.services.profile_service import ProfileService
@@ -18,6 +20,7 @@ from app.business.services.session_history_service import SessionHistoryService
 from app.business.services.subtitle_service import SubtitleService
 from app.business.services.vocabulary_service import VocabularyService
 from app.config.settings import get_settings
+from app.data_access.adapters.context_assist_adapter import OpenRouterContextAssistAdapter
 from app.data_access.adapters.llm_adapter import MockLLMQuizAdapter
 from app.data_access.adapters.llm_adapter import OpenRouterLLMQuizAdapter
 from app.data_access.adapters.youtube_subtitle_adapter import YouTubeSubtitleAdapter
@@ -57,12 +60,38 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
     return MockLLMQuizAdapter()
 
 
+@lru_cache(maxsize=1)
+def get_context_assist_provider() -> ContextAssistProvider | None:
+    settings = get_settings()
+    configured_provider = settings.llm_provider.strip().lower()
+
+    if configured_provider == "openrouter" and settings.openrouter_api_key:
+        return OpenRouterContextAssistAdapter(
+            api_key=settings.openrouter_api_key,
+            model=settings.openrouter_model,
+            site_url=settings.openrouter_site_url,
+            app_title=settings.openrouter_app_title,
+            timeout_seconds=settings.openrouter_context_assist_timeout_seconds,
+            max_tokens=settings.openrouter_context_assist_max_tokens,
+        )
+
+    return None
+
+
 def get_subtitle_service() -> SubtitleService:
     return SubtitleService(provider=get_subtitle_provider())
 
 
 def get_lesson_service() -> LessonService:
     return LessonService(subtitle_provider=get_subtitle_provider())
+
+
+def get_context_assist_service() -> ContextAssistService:
+    settings = get_settings()
+    return ContextAssistService(
+        provider=get_context_assist_provider(),
+        max_terms_per_segment=settings.context_assist_max_terms_per_segment,
+    )
 
 
 def get_scoring_service() -> ScoringService:

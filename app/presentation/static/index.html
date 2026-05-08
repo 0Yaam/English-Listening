@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shadowing Studio</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=20260506d" />
+    <link rel="stylesheet" href="/static/css/styles.css?v=20260507a" />
   </head>
   <body class="study-page">
     <header class="study-topbar">
@@ -141,7 +141,7 @@
                   <p class="practice-shortcut-note">Ctrl starts or replays the current segment. Enter checks your answer.</p>
                 </article>
 
-                <div class="practice-actions sr-only" aria-hidden="true">
+                <div class="practice-actions">
                   <div class="practice-action-buttons">
                     <button id="submit-answer-button" type="submit" class="button-primary">
                       Check answer
@@ -223,6 +223,14 @@
       </section>
     </main>
 
-    <script type="module" src="/static/js/app.js?v=20260506d"></script>
+    <aside
+      id="word-assist-popover"
+      class="word-assist-popover"
+      hidden
+      role="dialog"
+      aria-live="polite"
+    ></aside>
+
+    <script type="module" src="/static/js/app.js?v=20260507a"></script>
   </body>
 </html>

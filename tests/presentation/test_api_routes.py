@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.business.models.context_assist import ContextAssistItem
 from app.business.models.lesson import BlankExercise, BlankExerciseItem
 from app.main import app
 from app.presentation.dependencies.services import (
+    get_context_assist_service,
     get_lesson_service,
     get_scoring_service,
 )
@@ -51,6 +53,25 @@ class FakeScoringService:
         return 100.0 if user_input.strip().lower() == original_text.strip().lower() else 50.0
 
 
+class FakeContextAssistService:
+    def build_context_assist(self, *, segments, max_terms_per_segment):
+        return [
+            ContextAssistItem(
+                segment_index=segments[0].segment_index,
+                term="recognition",
+                meaning_en="the ability to identify something heard before",
+                meaning_vi="khả năng nhận ra điều đã nghe trước đó",
+                part_of_speech="noun / danh từ",
+                pronunciation="/ˌrekəɡˈnɪʃən/",
+                chunks=("word recognition",),
+                context_sentence="Shadowing improves [blank] and word recognition.",
+                example="Word recognition gets faster with repeated listening.",
+                difficulty="hard",
+                source="test",
+            )
+        ]
+
+
 def test_get_blank_exercise_returns_json_payload() -> None:
     app.dependency_overrides[get_lesson_service] = lambda: FakeLessonService()
     client = TestClient(app)
@@ -62,6 +83,37 @@ def test_get_blank_exercise_returns_json_payload() -> None:
     assert payload["video_id"] == "demo-video"
     assert payload["difficulty"] == 3
     assert payload["items"][0]["blanked_text"] == "_____ world"
+
+    app.dependency_overrides.clear()
+
+
+def test_context_assist_returns_masked_contextual_vocabulary() -> None:
+    app.dependency_overrides[get_context_assist_service] = lambda: FakeContextAssistService()
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/lessons/demo-video/context-assist",
+        json={
+            "max_terms_per_segment": 4,
+            "items": [
+                {
+                    "segment_index": 0,
+                    "text": "Shadowing improves _____ and word recognition.",
+                    "terms": ["recognition"],
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    item = payload["items"][0]
+    assert item["term"] == "recognition"
+    assert item["meaning_vi"] == "khả năng nhận ra điều đã nghe trước đó"
+    assert "[blank]" in item["context_sentence"]
+    assert "[blank]" not in item["example"]
+    assert "repeated listening" in item["example"]
+    assert "comprehension" not in item["example"]
 
     app.dependency_overrides.clear()
 
