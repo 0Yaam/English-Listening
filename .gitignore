@@ -6,4 +6,12 @@ __pycache__/
 .env
 .env.*
 !.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.egg-info/
+*.docx
+~$*
+~WRL*.tmp
+bao_cao_*.md
 

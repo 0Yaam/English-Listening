@@ -45,13 +45,41 @@ html {
 }
 
 body {
+  position: relative;
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8fafc 0%, var(--color-bg) 100%);
+  background:
+    linear-gradient(135deg, rgba(219, 234, 254, 0.58) 0%, rgba(248, 250, 252, 0) 36%),
+    linear-gradient(225deg, rgba(236, 253, 245, 0.48) 0%, rgba(248, 250, 252, 0) 34%),
+    linear-gradient(315deg, rgba(255, 247, 237, 0.38) 0%, rgba(248, 250, 252, 0) 32%),
+    linear-gradient(180deg, #fbfdff 0%, #f4f7fb 56%, #eef3f8 100%);
   color: var(--color-text);
   font-family: var(--font-sans);
   line-height: 1.55;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0) 34%, rgba(255, 255, 255, 0.42)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0) 42%);
 }
 
 button,
@@ -84,6 +112,8 @@ a,
 }
 
 .dashboard-shell {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 14px;
@@ -96,8 +126,13 @@ a,
 .view-panel {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: var(--shadow-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9)),
+    rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 22px 52px rgba(15, 23, 42, 0.07),
+    0 1px 0 rgba(255, 255, 255, 0.86) inset;
+  backdrop-filter: blur(10px);
 }
 
 .dashboard-sidebar {

@@ -1,0 +1,20 @@
+services:
+  english-listening:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: english-listening:latest
+    container_name: english-listening
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////data/shadowing_app.db
+      AUTO_CREATE_TABLES: "true"
+    ports:
+      - "${APP_PORT:-18081}:8000"
+    volumes:
+      - shadowing-data:/data
+
+volumes:
+  shadowing-data:

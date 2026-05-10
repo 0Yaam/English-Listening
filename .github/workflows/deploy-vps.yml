@@ -1,0 +1,91 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          script: |
+            set -eu
+
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH }}"
+            if [ -z "$DEPLOY_PATH" ]; then
+              DEPLOY_PATH="/opt/english-listening"
+            fi
+
+            APP_PORT="${{ secrets.APP_PORT }}"
+            if [ -z "$APP_PORT" ]; then
+              APP_PORT="18081"
+            fi
+
+            SECRET_KEY_VALUE="${{ secrets.SECRET_KEY }}"
+            if [ -z "$SECRET_KEY_VALUE" ]; then
+              echo "Missing required GitHub secret: SECRET_KEY"
+              exit 1
+            fi
+
+            LLM_PROVIDER_VALUE="${{ secrets.LLM_PROVIDER }}"
+            if [ -z "$LLM_PROVIDER_VALUE" ]; then
+              LLM_PROVIDER_VALUE="openrouter"
+            fi
+
+            OPENROUTER_MODEL_VALUE="${{ secrets.OPENROUTER_MODEL }}"
+            if [ -z "$OPENROUTER_MODEL_VALUE" ]; then
+              OPENROUTER_MODEL_VALUE="openai/gpt-4o-mini"
+            fi
+
+            OPENROUTER_SITE_URL_VALUE="${{ secrets.OPENROUTER_SITE_URL }}"
+            if [ -z "$OPENROUTER_SITE_URL_VALUE" ]; then
+              OPENROUTER_SITE_URL_VALUE="http://${{ secrets.VPS_HOST }}:$APP_PORT"
+            fi
+
+            REPO_URL="${{ secrets.DEPLOY_REPO_URL }}"
+            if [ -z "$REPO_URL" ]; then
+              REPO_URL="https://github.com/${{ github.repository }}.git"
+            fi
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              mkdir -p "$(dirname "$DEPLOY_PATH")"
+              git clone "$REPO_URL" "$DEPLOY_PATH"
+            fi
+
+            cd "$DEPLOY_PATH"
+            git fetch origin main
+            git reset --hard origin/main
+
+            {
+              printf '%s\n' "APP_PORT=$APP_PORT"
+              printf '%s\n' "DATABASE_URL=sqlite:////data/shadowing_app.db"
+              printf '%s\n' "AUTO_CREATE_TABLES=true"
+              printf '%s\n' "SECRET_KEY=$SECRET_KEY_VALUE"
+              printf '%s\n' "JWT_ALGORITHM=HS256"
+              printf '%s\n' "ACCESS_TOKEN_EXPIRE_MINUTES=1440"
+              printf '%s\n' "LLM_PROVIDER=$LLM_PROVIDER_VALUE"
+              printf '%s\n' "AI_QUIZ_QUESTION_COUNT=5"
+              printf '%s\n' "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}"
+              printf '%s\n' "OPENROUTER_MODEL=$OPENROUTER_MODEL_VALUE"
+              printf '%s\n' "OPENROUTER_SITE_URL=$OPENROUTER_SITE_URL_VALUE"
+              printf '%s\n' "OPENROUTER_APP_TITLE=English Listening"
+              printf '%s\n' "OPENROUTER_QUIZ_DIFFICULTY=challenging"
+              printf '%s\n' "OPENROUTER_TIMEOUT_SECONDS=90"
+              printf '%s\n' "OPENROUTER_MAX_TOKENS=1800"
+              printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_TIMEOUT_SECONDS=12"
+              printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_MAX_TOKENS=900"
+              printf '%s\n' "CONTEXT_ASSIST_MAX_TERMS_PER_SEGMENT=6"
+            } > .env
+
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
