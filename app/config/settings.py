@@ -101,6 +101,18 @@ class Settings:
     ai_quiz_question_count: int = field(
         default_factory=lambda: int(os.getenv("AI_QUIZ_QUESTION_COUNT", "5")),
     )
+    youtube_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("YOUTUBE_PROXY_URL") or None,
+    )
+    youtube_http_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("YOUTUBE_HTTP_PROXY_URL") or None,
+    )
+    youtube_https_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("YOUTUBE_HTTPS_PROXY_URL") or None,
+    )
+    enable_demo_transcript_fallback: bool = field(
+        default_factory=lambda: _read_bool_env("ENABLE_DEMO_TRANSCRIPT_FALLBACK", False),
+    )
 
 
 @lru_cache(maxsize=1)

@@ -21,6 +21,7 @@ from app.business.services.subtitle_service import SubtitleService
 from app.business.services.vocabulary_service import VocabularyService
 from app.config.settings import get_settings
 from app.data_access.adapters.context_assist_adapter import OpenRouterContextAssistAdapter
+from app.data_access.adapters.demo_subtitle_fallback_adapter import DemoFallbackSubtitleProvider
 from app.data_access.adapters.llm_adapter import MockLLMQuizAdapter
 from app.data_access.adapters.llm_adapter import OpenRouterLLMQuizAdapter
 from app.data_access.adapters.youtube_subtitle_adapter import YouTubeSubtitleAdapter
@@ -36,9 +37,18 @@ from app.presentation.dependencies.database import get_db_session
 def get_subtitle_provider() -> SubtitleProvider:
     settings = get_settings()
 
-    return YouTubeSubtitleAdapter(
+    proxy_http_url = settings.youtube_http_proxy_url or settings.youtube_proxy_url
+    proxy_https_url = settings.youtube_https_proxy_url or settings.youtube_proxy_url
+
+    provider: SubtitleProvider = YouTubeSubtitleAdapter(
         default_languages=settings.default_subtitle_languages,
+        proxy_http_url=proxy_http_url,
+        proxy_https_url=proxy_https_url,
     )
+    if settings.enable_demo_transcript_fallback:
+        return DemoFallbackSubtitleProvider(primary_provider=provider)
+
+    return provider
 
 
 @lru_cache(maxsize=1)

@@ -117,6 +117,10 @@ jobs:
               printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_TIMEOUT_SECONDS=12"
               printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_MAX_TOKENS=900"
               printf '%s\n' "CONTEXT_ASSIST_MAX_TERMS_PER_SEGMENT=6"
+              printf '%s\n' "YOUTUBE_PROXY_URL=${{ secrets.YOUTUBE_PROXY_URL }}"
+              printf '%s\n' "YOUTUBE_HTTP_PROXY_URL=${{ secrets.YOUTUBE_HTTP_PROXY_URL }}"
+              printf '%s\n' "YOUTUBE_HTTPS_PROXY_URL=${{ secrets.YOUTUBE_HTTPS_PROXY_URL }}"
+              printf '%s\n' "ENABLE_DEMO_TRANSCRIPT_FALLBACK=${{ secrets.ENABLE_DEMO_TRANSCRIPT_FALLBACK }}"
             } > .env
 
             docker compose -f docker-compose.prod.yml up -d --build

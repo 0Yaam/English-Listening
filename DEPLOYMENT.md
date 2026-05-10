@@ -94,6 +94,7 @@ LLM_PROVIDER=openrouter
 OPENROUTER_MODEL=openai/gpt-4o-mini
 OPENROUTER_SITE_URL=http://IP_CUA_VPS:18081
 SEED_DEMO_DATA=true
+ENABLE_DEMO_TRANSCRIPT_FALLBACK=true
 ```
 
 Neu repo private, them secret nay bang HTTPS URL co token hoac dung deploy key rieng cho GitHub:
@@ -175,7 +176,36 @@ docker compose -f docker-compose.prod.yml up -d
 
 Luu y: cach copy nguyen SQLite se ghi de database tren server. Chi nen dung khi server chua co du lieu that.
 
-## 6. Lenh kiem tra tren VPS
+## 6. Xu ly loi YouTube chan transcript tren VPS
+
+App dung `yt-dlp` de lay subtitle/transcript tu YouTube. Cach nay thuong ben hon tren VPS, nhung YouTube van co the chan request tu IP datacenter/VPS. Khi do app co the bao:
+
+```text
+YouTube is temporarily blocking transcript requests.
+```
+
+Cach dung cho demo nhanh: them GitHub Secret nay va deploy lai:
+
+```text
+ENABLE_DEMO_TRANSCRIPT_FALLBACK=true
+```
+
+Khi YouTube chan VPS, app se dung transcript mau tieng Anh de man hinh luyen nghe van chay duoc. Luu y: transcript fallback nay chi de demo luong tinh nang, khong dam bao khop noi dung video YouTube bat ky.
+
+Cach dung dung cho production: cau hinh proxy/residential proxy cho `yt-dlp`, vi transcript can duoc lay tu IP khong bi YouTube chan.
+
+```text
+YOUTUBE_PROXY_URL=http://username:password@proxy-host:proxy-port
+```
+
+Neu proxy tach rieng HTTP/HTTPS:
+
+```text
+YOUTUBE_HTTP_PROXY_URL=http://username:password@proxy-host:proxy-port
+YOUTUBE_HTTPS_PROXY_URL=http://username:password@proxy-host:proxy-port
+```
+
+## 7. Lenh kiem tra tren VPS
 
 Xem container:
 
@@ -200,7 +230,7 @@ docker compose -f docker-compose.prod.yml restart
 
 Database SQLite duoc luu trong Docker volume `shadowing-data`, khong nam truc tiep trong source code.
 
-## 7. Neu co domain
+## 8. Neu co domain
 
 Tro A record cua domain ve IP VPS:
 
@@ -266,7 +296,7 @@ Neu chi dung domain, co the dong cong public `18081` va chi cho Nginx truy cap n
 ufw delete allow 18081/tcp
 ```
 
-## 8. Cap nhat thu cong khi can
+## 9. Cap nhat thu cong khi can
 
 Neu muon deploy bang tay tren VPS:
 
