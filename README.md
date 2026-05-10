@@ -69,6 +69,12 @@ APP_PORT=18082
 
 ## VPS Deployment
 
+Full step-by-step deployment guide:
+
+```text
+DEPLOYMENT.md
+```
+
 GitHub Actions workflow:
 
 ```text
