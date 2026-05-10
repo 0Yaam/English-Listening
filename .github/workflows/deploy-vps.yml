@@ -122,7 +122,21 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --build
             docker compose -f docker-compose.prod.yml ps
             if command -v curl >/dev/null 2>&1; then
-              curl --fail --silent --show-error "http://127.0.0.1:$APP_PORT/" >/dev/null
+              echo "Waiting for app to become ready..."
+              for attempt in $(seq 1 30); do
+                if curl --fail --silent --show-error "http://127.0.0.1:$APP_PORT/" >/dev/null; then
+                  echo "App is ready."
+                  break
+                fi
+
+                if [ "$attempt" -eq 30 ]; then
+                  echo "App did not become ready in time. Recent logs:"
+                  docker compose -f docker-compose.prod.yml logs --tail=200 english-listening
+                  exit 1
+                fi
+
+                sleep 2
+              done
             fi
             SEED_DEMO_DATA="${{ secrets.SEED_DEMO_DATA }}"
             if [ "$SEED_DEMO_DATA" = "true" ]; then
