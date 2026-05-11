@@ -12,7 +12,7 @@ dependencies = [
     "python-jose[cryptography]",
     "sqlalchemy",
     "uvicorn[standard]",
-    "yt-dlp",
+    "youtube-transcript-api",
 ]
 
 [project.optional-dependencies]

@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wdth,wght@100,500..900&display=swap");
+
 :root {
   --color-bg: #fafafa;
   --color-surface: #ffffff;
@@ -34,7 +36,7 @@
   --text-2xl: 28px;
   --transition-fast: 140ms ease;
   --font-sans:
-    Inter,
+    "Noto Sans",
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -62,6 +64,10 @@ body {
     linear-gradient(180deg, #fbfbfb 0%, #f7f7f8 100%);
   color: var(--color-text);
   font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
   line-height: 1.55;
   position: relative;
   overflow: hidden;
@@ -871,6 +877,7 @@ kbd {
   text-align: center;
   background: transparent;
   color: var(--color-text);
+  font-weight: 750;
   box-shadow: none;
 }
 
@@ -886,11 +893,15 @@ kbd {
 .inline-blank-input[data-result="correct"] {
   border-bottom-color: var(--color-success);
   color: var(--color-success);
+  background: rgba(22, 163, 74, 0.12);
+  box-shadow: inset 0 -2px 0 rgba(22, 163, 74, 0.28);
 }
 
 .inline-blank-input[data-result="incorrect"] {
   border-bottom-color: var(--color-error);
-  color: var(--color-text);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.14);
+  box-shadow: inset 0 -2px 0 rgba(220, 38, 38, 0.35);
 }
 
 .inline-blank-input[data-result="incorrect"]:focus-visible {

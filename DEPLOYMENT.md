@@ -178,7 +178,7 @@ Luu y: cach copy nguyen SQLite se ghi de database tren server. Chi nen dung khi 
 
 ## 6. Xu ly loi YouTube chan transcript tren VPS
 
-App dung `yt-dlp` de lay subtitle/transcript tu YouTube. Cach nay thuong ben hon tren VPS, nhung YouTube van co the chan request tu IP datacenter/VPS. Khi do app co the bao:
+App lay subtitle/transcript tu YouTube bang `youtube-transcript-api`. YouTube co the chan request tu IP datacenter/VPS. Khi do app co the bao:
 
 ```text
 YouTube is temporarily blocking transcript requests.
@@ -192,7 +192,7 @@ ENABLE_DEMO_TRANSCRIPT_FALLBACK=true
 
 Khi YouTube chan VPS, app se dung transcript mau tieng Anh de man hinh luyen nghe van chay duoc. Luu y: transcript fallback nay chi de demo luong tinh nang, khong dam bao khop noi dung video YouTube bat ky.
 
-Cach dung dung cho production: cau hinh proxy/residential proxy cho `yt-dlp`, vi transcript can duoc lay tu IP khong bi YouTube chan.
+Cach dung dung cho production: cau hinh proxy/residential proxy, vi transcript can duoc lay tu IP khong bi YouTube chan.
 
 ```text
 YOUTUBE_PROXY_URL=http://username:password@proxy-host:proxy-port

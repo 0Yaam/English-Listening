@@ -49,8 +49,8 @@ const TEXT = {
     "status.createError": "Could not create the exercise.",
     "status.fillBlank": "Fill every blank before checking this sentence.",
     "status.scoring": "Scoring your answer...",
-    "status.correctNext": "Correct. Moving to the next segment...",
-    "status.review": "Needs review. Edit the highlighted blanks and press Enter again.",
+    "status.correctNext": "Correct. Press Ctrl for the next segment.",
+    "status.review": "Needs review. Green blanks are correct, red blanks need fixing. Press Ctrl to replay.",
     "status.playing": "Playing segment {current}/{total}.",
     "status.paused": "The video is paused. Fill the missing words and submit the sentence.",
     "status.preparing": "Preparing the next segment...",
@@ -136,8 +136,8 @@ const TEXT = {
     "status.createError": "Không tạo được bài tập.",
     "status.fillBlank": "Hãy điền hết các ô trống trước khi kiểm tra câu này.",
     "status.scoring": "Đang chấm câu trả lời...",
-    "status.correctNext": "Đúng rồi. Đang chuyển sang đoạn tiếp theo...",
-    "status.review": "Cần xem lại. Sửa các ô được đánh dấu rồi nhấn Enter lần nữa.",
+    "status.correctNext": "Đúng rồi. Nhấn Ctrl để sang câu tiếp theo.",
+    "status.review": "Cần xem lại. Ô xanh là đúng, ô đỏ cần sửa. Nhấn Ctrl để nghe lại.",
     "status.playing": "Đang phát đoạn {current}/{total}.",
     "status.paused": "Video đã tạm dừng. Điền các từ bị thiếu rồi nộp câu trả lời.",
     "status.preparing": "Đang chuẩn bị đoạn tiếp theo...",
@@ -795,11 +795,9 @@ class AppController {
         this.disableInlineInputs(true)
         this.elements.submitAnswerButton.disabled = true
         this.elements.submitAnswerButton.textContent = this.t("mode.correct")
+        this.elements.nextSegmentButton.hidden = false
+        this.elements.nextSegmentButton.disabled = false
         this.renderStatus(this.t("status.correctNext"), "success")
-        this.pendingAdvanceId = window.setTimeout(() => {
-          this.pendingAdvanceId = null
-          this.advanceToNextStep()
-        }, 650)
       } else {
         this.setState(AppState.WAITING_FOR_INPUT)
         this.setModeOverride(this.t("mode.review"))
@@ -1138,9 +1136,7 @@ class AppController {
       this.elements.promptText.append(fallbackInput)
     }
 
-    if (this.session.currentIndex > 0) {
-      this.prefetchContextAssistAround(this.session.currentIndex)
-    }
+    this.prefetchContextAssistAround(this.session.currentIndex)
   }
 
   appendAssistText(container, text, item) {
@@ -1490,18 +1486,15 @@ class AppController {
     if (!this.session) {
       return
     }
-    void this.prefetchContextAssistSegments(0, Math.min(3, this.session.exercise.items.length))
-    window.setTimeout(() => {
-      void this.prefetchContextAssistSegments(3, 5)
-    }, 500)
+    this.prefetchContextAssistAround(this.session.currentIndex)
   }
 
   prefetchContextAssistAround(currentIndex) {
     if (!this.session) {
       return
     }
-    const nextStart = Math.max(0, currentIndex + 1)
-    void this.prefetchContextAssistSegments(nextStart, 5)
+    const windowStart = Math.max(0, currentIndex)
+    void this.prefetchContextAssistSegments(windowStart, 3)
   }
 
   async prefetchContextAssistSegments(startIndex, count) {
@@ -1532,10 +1525,12 @@ class AppController {
     }
 
     try {
-      await this.fetchContextAssist(selectedItems)
-      selectedItems.forEach((item) => {
-        this.session.assistRequestedSegments.add(item.segment_index)
-      })
+      const didCacheItems = await this.fetchContextAssist(selectedItems)
+      if (didCacheItems) {
+        selectedItems.forEach((item) => {
+          this.session.assistRequestedSegments.add(item.segment_index)
+        })
+      }
       this.refreshCurrentAssistInfo()
     } finally {
       selectedItems.forEach((item) => {
@@ -1571,7 +1566,7 @@ class AppController {
 
   async fetchContextAssist(items, { termsBySegment = null, maxTermsPerSegment = 6 } = {}) {
     if (!this.session || items.length === 0) {
-      return
+      return false
     }
 
     let response
@@ -1594,18 +1589,19 @@ class AppController {
         },
       )
     } catch (error) {
-      return
+      return false
     }
 
     if (!response.ok) {
-      return
+      return false
     }
 
     try {
       const payload = await response.json()
       this.cacheContextAssistItems(payload.items ?? [])
+      return true
     } catch (error) {
-      return
+      return false
     }
   }
 
@@ -2152,6 +2148,10 @@ class AppController {
     if (event.key === "Control" && !event.repeat && !event.metaKey && !event.altKey) {
       if (this.session && this.state === AppState.WAITING_FOR_INPUT) {
         event.preventDefault()
+        if (this.modeLabelOverride === this.t("mode.correct")) {
+          this.advanceToNextStep()
+          return
+        }
         this.replayCurrentSegment()
         return
       }

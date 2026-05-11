@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wdth,wght@100,500..900&display=swap");
+
 :root {
   --color-bg: #f4f7fb;
   --color-surface: #ffffff;
@@ -24,7 +26,7 @@
   --transition-medium: 220ms ease;
   --transition-smooth: 280ms cubic-bezier(0.22, 1, 0.36, 1);
   --font-sans:
-    Inter,
+    "Noto Sans",
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -56,6 +58,10 @@ body {
     linear-gradient(180deg, #fbfdff 0%, #f4f7fb 56%, #eef3f8 100%);
   color: var(--color-text);
   font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
   line-height: 1.55;
   isolation: isolate;
 }
