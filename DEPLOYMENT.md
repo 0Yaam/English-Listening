@@ -95,6 +95,7 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 OPENROUTER_SITE_URL=http://IP_CUA_VPS:18081
 SEED_DEMO_DATA=true
 ENABLE_DEMO_TRANSCRIPT_FALLBACK=true
+YOUTUBE_PROXY_URL=http://42.119.112.95:11982
 ```
 
 Neu repo private, them secret nay bang HTTPS URL co token hoac dung deploy key rieng cho GitHub:
@@ -197,6 +198,16 @@ Cach dung dung cho production: cau hinh proxy/residential proxy, vi transcript c
 ```text
 YOUTUBE_PROXY_URL=http://username:password@proxy-host:proxy-port
 ```
+
+Luu y: cau hinh proxy phai dat trong GitHub Secrets, khong sua truc tiep file `.env` tren VPS. Moi lan deploy, GitHub Actions se tao lai `.env` tu secrets va ghi de file cu.
+
+Neu proxy cua ban la HTTP proxy, hay dung `http://`, ke ca khi no duoc dung de truy cap YouTube HTTPS. Vi du:
+
+```text
+YOUTUBE_PROXY_URL=http://42.119.112.95:11982
+```
+
+Chi dung `https://42.119.112.95:11982` neu proxy server that su ho tro HTTPS proxy endpoint. Neu khong chac, mac dinh nen dung `http://`.
 
 Neu proxy tach rieng HTTP/HTTPS:
 

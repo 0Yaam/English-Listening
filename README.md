@@ -101,6 +101,9 @@ APP_PORT
 LLM_PROVIDER
 OPENROUTER_MODEL
 OPENROUTER_SITE_URL
+YOUTUBE_PROXY_URL
+YOUTUBE_HTTP_PROXY_URL
+YOUTUBE_HTTPS_PROXY_URL
 ```
 
 The deployment uses Docker Compose and stores SQLite data in the `shadowing-data` Docker volume.

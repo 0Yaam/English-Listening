@@ -72,3 +72,4 @@ def test_generate_blank_exercise_rejects_invalid_difficulty() -> None:
         assert str(exc) == "difficulty must be between 1 and 5."
     else:
         raise AssertionError("Expected ValueError for invalid difficulty.")
+#skjfdsjlsdjfk

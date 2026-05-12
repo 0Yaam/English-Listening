@@ -84,6 +84,15 @@ jobs:
               OPENROUTER_SITE_URL_VALUE="http://${{ secrets.VPS_HOST }}:$APP_PORT"
             fi
 
+            YOUTUBE_PROXY_URL_VALUE="${{ secrets.YOUTUBE_PROXY_URL }}"
+            YOUTUBE_HTTP_PROXY_URL_VALUE="${{ secrets.YOUTUBE_HTTP_PROXY_URL }}"
+            YOUTUBE_HTTPS_PROXY_URL_VALUE="${{ secrets.YOUTUBE_HTTPS_PROXY_URL }}"
+            if [ -n "$YOUTUBE_PROXY_URL_VALUE" ] || [ -n "$YOUTUBE_HTTP_PROXY_URL_VALUE" ] || [ -n "$YOUTUBE_HTTPS_PROXY_URL_VALUE" ]; then
+              echo "YouTube proxy: configured from GitHub Secrets."
+            else
+              echo "YouTube proxy: not configured. YouTube may block transcript requests from VPS IPs."
+            fi
+
             REPO_URL="${{ secrets.DEPLOY_REPO_URL }}"
             if [ -z "$REPO_URL" ]; then
               REPO_URL="https://github.com/${{ github.repository }}.git"
@@ -117,9 +126,9 @@ jobs:
               printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_TIMEOUT_SECONDS=12"
               printf '%s\n' "OPENROUTER_CONTEXT_ASSIST_MAX_TOKENS=900"
               printf '%s\n' "CONTEXT_ASSIST_MAX_TERMS_PER_SEGMENT=6"
-              printf '%s\n' "YOUTUBE_PROXY_URL=${{ secrets.YOUTUBE_PROXY_URL }}"
-              printf '%s\n' "YOUTUBE_HTTP_PROXY_URL=${{ secrets.YOUTUBE_HTTP_PROXY_URL }}"
-              printf '%s\n' "YOUTUBE_HTTPS_PROXY_URL=${{ secrets.YOUTUBE_HTTPS_PROXY_URL }}"
+              printf '%s\n' "YOUTUBE_PROXY_URL=$YOUTUBE_PROXY_URL_VALUE"
+              printf '%s\n' "YOUTUBE_HTTP_PROXY_URL=$YOUTUBE_HTTP_PROXY_URL_VALUE"
+              printf '%s\n' "YOUTUBE_HTTPS_PROXY_URL=$YOUTUBE_HTTPS_PROXY_URL_VALUE"
               printf '%s\n' "ENABLE_DEMO_TRANSCRIPT_FALLBACK=${{ secrets.ENABLE_DEMO_TRANSCRIPT_FALLBACK }}"
             } > .env
 
