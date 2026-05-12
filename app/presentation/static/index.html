@@ -7,6 +7,31 @@
     <link rel="stylesheet" href="/static/css/styles.css?v=20260510b" />
   </head>
   <body class="study-page">
+    <aside class="quick-controls" aria-label="Practice controls">
+      <label class="quick-control-field" for="playback-speed">
+        <span>Speed video</span>
+        <select id="playback-speed" class="quick-control-select">
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+      </label>
+
+      <label class="quick-control-field" for="difficulty">
+        <span>Độ khó</span>
+        <select id="difficulty" name="difficulty" class="quick-control-select">
+          <option value="1">1 - Basic</option>
+          <option value="2">2 - Easy</option>
+          <option value="3" selected>3 - Standard</option>
+          <option value="4">4 - Hard</option>
+          <option value="5">5 - Advanced</option>
+        </select>
+      </label>
+    </aside>
+
     <header class="study-topbar">
       <div class="container study-topbar-inner">
         <div class="topbar-brand-group">
@@ -74,22 +99,6 @@
                 Start practice
               </button>
             </div>
-
-            <label for="difficulty" class="sr-only">Difficulty</label>
-            <select
-              id="difficulty"
-              name="difficulty"
-              class="entry-select entry-select-hidden"
-              aria-hidden="true"
-              tabindex="-1"
-            >
-              <option value="1">1 - Basic</option>
-              <option value="2">2 - Easy</option>
-              <option value="3" selected>3 - Standard</option>
-              <option value="4">4 - Hard</option>
-              <option value="5">5 - Advanced</option>
-            </select>
-
             <p id="status-message" class="status-message" role="status" aria-live="polite">
               Ready when you are.
             </p>

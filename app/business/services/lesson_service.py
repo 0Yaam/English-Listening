@@ -129,21 +129,38 @@ class LessonService:
         if word_count == 0:
             return ()
 
+        selected_indexes: set[int] = set()
+
+        # Higher difficulty should add more blanks on top of easier levels,
+        # not reshuffle the words the learner already has to fill.
+        for level in range(self._MIN_DIFFICULTY, difficulty + 1):
+            target_count = self._blank_count_for_level(
+                word_count=word_count,
+                difficulty=level,
+            )
+            while len(selected_indexes) < target_count:
+                selected_indexes.add(
+                    self._next_blank_index(
+                        word_count=word_count,
+                        selected_indexes=selected_indexes,
+                    ),
+                )
+
+        return tuple(sorted(selected_indexes))
+
+    def _blank_count_for_level(self, *, word_count: int, difficulty: int) -> int:
         blank_ratio = self._DIFFICULTY_RATIOS[difficulty]
         blank_count = max(1, round(word_count * blank_ratio))
-        blank_count = min(blank_count, word_count)
+        return min(blank_count, word_count)
 
-        indexes = {
-            min(
-                word_count - 1,
-                ((position + 1) * word_count) // (blank_count + 1),
-            )
-            for position in range(blank_count)
-        }
-
-        return tuple(sorted(indexes))
+    @staticmethod
+    def _next_blank_index(*, word_count: int, selected_indexes: set[int]) -> int:
+        target_position = (len(selected_indexes) + 1) * word_count / (len(selected_indexes) + 2)
+        candidates = (index for index in range(word_count) if index not in selected_indexes)
+        return min(candidates, key=lambda index: (abs(index - target_position), index))
 
     @staticmethod
     def _build_placeholder(word: str) -> str:
         return "_" * max(4, len(word))
+
 

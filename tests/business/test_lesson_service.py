@@ -46,8 +46,20 @@ def test_generate_blank_exercise_masks_words_deterministically() -> None:
     assert provider.last_video_id == "demo_video_id"
     assert exercise.video_id == "demo_video_id"
     assert exercise.difficulty == 3
-    assert exercise.items[0].blanked_text == "Shadowing _____ improve _________ skills."
-    assert exercise.items[0].answers == ("helps", "listening")
+    assert exercise.items[0].blanked_text == "Shadowing helps _______ _________ skills."
+    assert exercise.items[0].answers == ("improve", "listening")
+
+
+def test_higher_difficulty_adds_blanks_without_replacing_easier_words() -> None:
+    provider = FakeSubtitleProvider()
+    service = LessonService(subtitle_provider=provider)
+
+    standard = service.generate_blank_exercise(video_id="demo", difficulty=3)
+    advanced = service.generate_blank_exercise(video_id="demo", difficulty=5)
+
+    standard_answers = set(standard.items[0].answers)
+    advanced_answers = set(advanced.items[0].answers)
+    assert standard_answers < advanced_answers
 
 
 def test_generate_blank_exercise_rejects_invalid_difficulty() -> None:

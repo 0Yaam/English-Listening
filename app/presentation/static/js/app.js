@@ -489,6 +489,12 @@ class YouTubePlayerController {
     }
   }
 
+  setPlaybackRate(rate) {
+    if (this.player && typeof this.player.setPlaybackRate === "function") {
+      this.player.setPlaybackRate(rate)
+    }
+  }
+
   getCurrentTime() {
     if (!this.player) {
       return 0
@@ -592,6 +598,14 @@ class AppController {
   bindEvents() {
     this.elements.lessonForm.addEventListener("submit", (event) => {
       void this.handleLessonSubmit(event)
+    })
+
+    this.elements.playbackSpeedSelect.addEventListener("change", () => {
+      this.applyPlaybackSpeed()
+    })
+
+    this.elements.difficultySelect.addEventListener("change", () => {
+      this.renderDifficulty()
     })
 
     this.elements.startSessionButton.addEventListener("click", () => {
@@ -714,6 +728,7 @@ class AppController {
       this.setModeOverride(this.t("status.loadingVideoMode"))
       this.renderStatus(this.t("status.loadingPlayer"))
       await this.playerController.loadVideo(videoId, exercise.items[0].start, false)
+      this.applyPlaybackSpeed()
       this.hideVideoLoading()
 
       this.renderExerciseLoaded()
@@ -2066,6 +2081,11 @@ class AppController {
     this.elements.workspaceDifficulty.textContent = label
   }
 
+  applyPlaybackSpeed() {
+    const speed = Number(this.elements.playbackSpeedSelect.value) || 1
+    this.playerController.setPlaybackRate(speed)
+  }
+
   renderWorkspaceMode() {
     const labelMap = {
       [AppState.IDLE]: this.t("mode.waiting"),
@@ -2645,6 +2665,7 @@ const elements = {
   generateLessonButton: document.getElementById("generate-lesson-button"),
   videoUrlInput: document.getElementById("video-url"),
   difficultySelect: document.getElementById("difficulty"),
+  playbackSpeedSelect: document.getElementById("playback-speed"),
   startSessionButton: document.getElementById("start-session-button"),
   workspaceStateBadge: document.getElementById("workspace-state-badge"),
   answerForm: document.getElementById("answer-form"),
