@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import hashlib
 import json
 import re
 from typing import Any
@@ -24,11 +25,14 @@ Generate multiple-choice reading comprehension questions based only on the trans
 
 Difficulty target: {difficulty}
 Question focus: {question_focus}
+Generation seed: {generation_seed}
 
 Rules:
 - Only use information from the transcript.
 - Do not invent facts outside the transcript.
 - Follow the question focus carefully: {question_focus_instruction}
+- Treat the generation seed as a variation id. Use it to vary question angles, wording, answer order, and distractors on each regeneration.
+- Do not repeat previous questions listed in "Questions to avoid".
 - Avoid generic wording like "which statement best captures the idea highlighted in question".
 - Avoid copying full transcript sentences as the correct option.
 - Distractors should sound plausible but be clearly wrong based on the transcript.
@@ -62,6 +66,9 @@ Output format:
 
 Transcript:
 {raw_transcript}
+
+Questions to avoid:
+{avoid_questions_text}
 """
 
 
@@ -105,15 +112,22 @@ class MockLLMQuizAdapter(LLMQuizProvider):
         question_count: int,
         difficulty: str = "medium",
         question_type: str = "mixed",
+        generation_seed: str | None = None,
+        avoid_questions: tuple[str, ...] = (),
     ) -> list[QuizQuestionDraft]:
         sentences = self._extract_sentences(raw_text)
+        seed = generation_seed or ""
+        sentence_offset = self._seed_offset(seed, len(sentences))
+        answer_offset = self._seed_offset(seed, len(self._CORRECT_SEQUENCE))
         transcript_preview = sentences[0]
         questions: list[QuizQuestionDraft] = []
 
         for index in range(question_count):
-            focus_sentence = sentences[index % len(sentences)]
-            alternate_sentence = sentences[(index + 1) % len(sentences)]
-            correct_answer = self._CORRECT_SEQUENCE[index % len(self._CORRECT_SEQUENCE)]
+            focus_sentence = sentences[(index + sentence_offset) % len(sentences)]
+            alternate_sentence = sentences[(index + sentence_offset + 1) % len(sentences)]
+            correct_answer = self._CORRECT_SEQUENCE[
+                (index + answer_offset) % len(self._CORRECT_SEQUENCE)
+            ]
             correct_option = self._truncate(focus_sentence, 88)
             distractors = self._build_distractors(
                 transcript_preview=transcript_preview,
@@ -158,6 +172,13 @@ class MockLLMQuizAdapter(LLMQuizProvider):
     @staticmethod
     def _truncate(value: str, limit: int) -> str:
         return value if len(value) <= limit else f"{value[: limit - 1].rstrip()}…"
+
+    @staticmethod
+    def _seed_offset(seed: str, modulo: int) -> int:
+        if not seed or modulo <= 1:
+            return 0
+        digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+        return int(digest[:8], 16) % modulo
 
     @classmethod
     def _build_distractors(
@@ -208,6 +229,8 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
         question_count: int,
         difficulty: str = "medium",
         question_type: str = "mixed",
+        generation_seed: str | None = None,
+        avoid_questions: tuple[str, ...] = (),
     ) -> list[QuizQuestionDraft]:
         payload = {
             "model": self._model,
@@ -223,6 +246,8 @@ class OpenAILLMQuizAdapter(LLMQuizProvider):
                         question_count=question_count,
                         difficulty=difficulty,
                         question_type=question_type,
+                        generation_seed=generation_seed,
+                        avoid_questions=avoid_questions,
                     ),
                 },
             ],
@@ -291,6 +316,8 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         fallback_models: Sequence[str] = (),
         site_url: str | None = None,
         app_title: str | None = None,
+        proxy_http_url: str | None = None,
+        proxy_https_url: str | None = None,
         difficulty: str = "challenging",
         timeout_seconds: int = 90,
         max_tokens: int = 1800,
@@ -304,6 +331,8 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         )
         self._site_url = site_url
         self._app_title = app_title
+        self._proxy_http_url = proxy_http_url
+        self._proxy_https_url = proxy_https_url
         self._difficulty = difficulty
         self._timeout_seconds = timeout_seconds
         self._max_tokens = max_tokens
@@ -315,6 +344,8 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         question_count: int,
         difficulty: str = "medium",
         question_type: str = "mixed",
+        generation_seed: str | None = None,
+        avoid_questions: tuple[str, ...] = (),
     ) -> list[QuizQuestionDraft]:
         resolved_difficulty = difficulty.strip() or self._difficulty
         models = (self._model, *self._fallback_models)
@@ -327,12 +358,16 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                 question_count=question_count,
                 difficulty=resolved_difficulty,
                 question_type=question_type,
+                generation_seed=generation_seed,
+                avoid_questions=avoid_questions,
             )
             try:
                 response_payload = self._post_json(
                     url="https://openrouter.ai/api/v1/chat/completions",
                     headers=self._build_headers(),
                     payload=payload,
+                    proxy_http_url=self._proxy_http_url,
+                    proxy_https_url=self._proxy_https_url,
                     timeout_seconds=self._timeout_seconds,
                 )
             except LLMQuizProviderError as exc:
@@ -363,6 +398,8 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         question_count: int,
         difficulty: str,
         question_type: str,
+        generation_seed: str | None,
+        avoid_questions: tuple[str, ...],
     ) -> dict[str, Any]:
         return {
             "model": model,
@@ -381,10 +418,13 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                         question_count=question_count,
                         difficulty=difficulty,
                         question_type=question_type,
+                        generation_seed=generation_seed,
+                        avoid_questions=avoid_questions,
                     ),
                 },
             ],
-            "temperature": 0.35,
+            "temperature": 0.7,
+            "top_p": 0.9,
             "max_tokens": self._max_tokens,
             "response_format": {
                 "type": "json_schema",
@@ -420,12 +460,15 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        proxy_http_url: str | None = None,
+        proxy_https_url: str | None = None,
         timeout_seconds: int,
     ) -> dict[str, Any]:
         body = json.dumps(payload).encode("utf-8")
         http_request = request.Request(url, data=body, headers=headers, method="POST")
+        opener = _build_opener(proxy_http_url=proxy_http_url, proxy_https_url=proxy_https_url)
         try:
-            with request.urlopen(http_request, timeout=timeout_seconds) as response:
+            with opener.open(http_request, timeout=timeout_seconds) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             error_message = _read_http_error_message(exc)
@@ -452,6 +495,8 @@ class GeminiLLMQuizAdapter(LLMQuizProvider):
         question_count: int,
         difficulty: str = "medium",
         question_type: str = "mixed",
+        generation_seed: str | None = None,
+        avoid_questions: tuple[str, ...] = (),
     ) -> list[QuizQuestionDraft]:
         payload = {
             "contents": [
@@ -463,6 +508,8 @@ class GeminiLLMQuizAdapter(LLMQuizProvider):
                                 question_count=question_count,
                                 difficulty=difficulty,
                                 question_type=question_type,
+                                generation_seed=generation_seed,
+                                avoid_questions=avoid_questions,
                             ),
                         }
                     ]
@@ -522,6 +569,8 @@ def _build_prompt(
     question_count: int,
     difficulty: str = "standard",
     question_type: str = "mixed",
+    generation_seed: str | None = None,
+    avoid_questions: tuple[str, ...] = (),
 ) -> str:
     normalized_question_type = question_type.strip().lower() or "mixed"
     return _PROMPT_TEMPLATE.format(
@@ -529,7 +578,9 @@ def _build_prompt(
         difficulty=difficulty.strip() or "standard",
         question_focus=normalized_question_type.replace("_", " "),
         question_focus_instruction=_build_question_focus_instruction(normalized_question_type),
+        generation_seed=generation_seed or "default",
         raw_transcript=raw_text.strip(),
+        avoid_questions_text=_format_avoid_questions(avoid_questions),
     )
 
 
@@ -588,6 +639,13 @@ def _question_list_json_schema() -> dict[str, Any]:
     }
 
 
+def _format_avoid_questions(avoid_questions: tuple[str, ...]) -> str:
+    cleaned_questions = [question.strip() for question in avoid_questions if question.strip()]
+    if not cleaned_questions:
+        return "- None"
+    return "\n".join(f"- {question}" for question in cleaned_questions[:25])
+
+
 def _parse_generated_questions(content: str) -> list[QuizQuestionDraft]:
     try:
         parsed = json.loads(content)
@@ -612,6 +670,23 @@ def _parse_generated_questions(content: str) -> list[QuizQuestionDraft]:
         )
         for item in generated_questions
     ]
+
+
+def _build_opener(
+    *,
+    proxy_http_url: str | None = None,
+    proxy_https_url: str | None = None,
+) -> request.OpenerDirector:
+    proxies: dict[str, str] = {}
+    if proxy_http_url:
+        proxies["http"] = proxy_http_url
+    if proxy_https_url:
+        proxies["https"] = proxy_https_url
+
+    if proxies:
+        return request.build_opener(request.ProxyHandler(proxies))
+
+    return request.build_opener()
 
 
 def _read_http_error_message(exc: error.HTTPError) -> str:

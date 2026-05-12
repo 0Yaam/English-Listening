@@ -103,6 +103,15 @@ class Settings:
     openrouter_site_url: str | None = field(
         default_factory=lambda: os.getenv("OPENROUTER_SITE_URL"),
     )
+    openrouter_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_PROXY_URL") or None,
+    )
+    openrouter_http_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_HTTP_PROXY_URL") or None,
+    )
+    openrouter_https_proxy_url: str | None = field(
+        default_factory=lambda: os.getenv("OPENROUTER_HTTPS_PROXY_URL") or None,
+    )
     openrouter_app_title: str = field(
         default_factory=lambda: os.getenv("OPENROUTER_APP_TITLE", "English Listening"),
     )

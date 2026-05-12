@@ -40,11 +40,15 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        proxy_http_url: str | None,
+        proxy_https_url: str | None,
         timeout_seconds: int,
     ) -> dict[str, Any]:
         captured["url"] = url
         captured["headers"] = headers
         captured["payload"] = payload
+        captured["proxy_http_url"] = proxy_http_url
+        captured["proxy_https_url"] = proxy_https_url
         captured["timeout_seconds"] = timeout_seconds
         return {
             "choices": [
@@ -78,6 +82,8 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
         model="openai/gpt-4o-mini",
         site_url="https://example.test",
         app_title="Quiz App",
+        proxy_http_url="http://proxy.test:8080",
+        proxy_https_url="http://proxy.test:8080",
         difficulty="advanced inference",
         timeout_seconds=75,
         max_tokens=1200,
@@ -88,6 +94,8 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
         question_count=1,
         difficulty="hard",
         question_type="vocabulary",
+        generation_seed="seed-123",
+        avoid_questions=("What repeated question should be avoided?",),
     )
 
     assert captured["url"] == "https://openrouter.ai/api/v1/chat/completions"
@@ -95,12 +103,17 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
     assert captured["headers"]["HTTP-Referer"] == "https://example.test"
     assert captured["headers"]["X-OpenRouter-Title"] == "Quiz App"
     assert captured["payload"]["model"] == "openai/gpt-4o-mini"
+    assert captured["proxy_http_url"] == "http://proxy.test:8080"
+    assert captured["proxy_https_url"] == "http://proxy.test:8080"
     assert captured["payload"]["max_tokens"] == 1200
     assert captured["timeout_seconds"] == 75
     assert captured["payload"]["response_format"]["type"] == "json_schema"
     assert captured["payload"]["response_format"]["json_schema"]["name"] == "reading_quiz"
     assert "Difficulty target: hard" in captured["payload"]["messages"][1]["content"]
     assert "Question focus: vocabulary" in captured["payload"]["messages"][1]["content"]
+    assert "Generation seed: seed-123" in captured["payload"]["messages"][1]["content"]
+    assert "What repeated question should be avoided?" in captured["payload"]["messages"][1]["content"]
+    assert captured["payload"]["temperature"] == 0.7
     assert questions[0].question == "What is the main point?"
 
 
@@ -114,6 +127,8 @@ def test_openrouter_llm_quiz_adapter_falls_back_when_model_is_region_blocked(
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        proxy_http_url: str | None,
+        proxy_https_url: str | None,
         timeout_seconds: int,
     ) -> dict[str, Any]:
         requested_models.append(str(payload["model"]))

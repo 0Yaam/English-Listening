@@ -45,6 +45,8 @@ class OpenRouterContextAssistAdapter:
         fallback_models: Sequence[str] = (),
         site_url: str | None = None,
         app_title: str | None = None,
+        proxy_http_url: str | None = None,
+        proxy_https_url: str | None = None,
         timeout_seconds: int = 12,
         max_tokens: int = 900,
     ) -> None:
@@ -57,6 +59,8 @@ class OpenRouterContextAssistAdapter:
         )
         self._site_url = site_url
         self._app_title = app_title
+        self._proxy_http_url = proxy_http_url
+        self._proxy_https_url = proxy_https_url
         self._timeout_seconds = timeout_seconds
         self._max_tokens = max_tokens
 
@@ -81,6 +85,8 @@ class OpenRouterContextAssistAdapter:
                     url="https://openrouter.ai/api/v1/chat/completions",
                     headers=self._build_headers(),
                     payload=payload,
+                    proxy_http_url=self._proxy_http_url,
+                    proxy_https_url=self._proxy_https_url,
                     timeout_seconds=self._timeout_seconds,
                 )
             except ContextAssistProviderError as exc:
@@ -246,12 +252,15 @@ class OpenRouterContextAssistAdapter:
         url: str,
         headers: dict[str, str],
         payload: dict[str, Any],
+        proxy_http_url: str | None = None,
+        proxy_https_url: str | None = None,
         timeout_seconds: int,
     ) -> dict[str, Any]:
         body = json.dumps(payload).encode("utf-8")
         http_request = request.Request(url, data=body, headers=headers, method="POST")
+        opener = _build_opener(proxy_http_url=proxy_http_url, proxy_https_url=proxy_https_url)
         try:
-            with request.urlopen(http_request, timeout=timeout_seconds) as response:
+            with opener.open(http_request, timeout=timeout_seconds) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             error_message = _read_http_error_message(exc)
@@ -280,6 +289,23 @@ def _read_http_error_message(exc: error.HTTPError) -> str:
             return payload["message"]
 
     return exc.reason
+
+
+def _build_opener(
+    *,
+    proxy_http_url: str | None = None,
+    proxy_https_url: str | None = None,
+) -> request.OpenerDirector:
+    proxies: dict[str, str] = {}
+    if proxy_http_url:
+        proxies["http"] = proxy_http_url
+    if proxy_https_url:
+        proxies["https"] = proxy_https_url
+
+    if proxies:
+        return request.build_opener(request.ProxyHandler(proxies))
+
+    return request.build_opener()
 
 
 def _is_openrouter_model_availability_error(message: str) -> bool:

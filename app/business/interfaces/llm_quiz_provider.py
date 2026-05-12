@@ -15,5 +15,7 @@ class LLMQuizProvider(ABC):
         question_count: int,
         difficulty: str = "medium",
         question_type: str = "mixed",
+        generation_seed: str | None = None,
+        avoid_questions: tuple[str, ...] = (),
     ) -> list[QuizQuestionDraft]:
         """Generate validated quiz questions from a transcript."""

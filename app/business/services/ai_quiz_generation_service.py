@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from app.business.interfaces.llm_quiz_provider import LLMQuizProvider
 from app.business.models.quiz import Quiz
 from app.data_access.adapters.llm_adapter import LLMQuizOutputValidationError
@@ -62,11 +64,23 @@ class QuizGenerationService:
                 "Transcript is too short to generate a reliable reading quiz.",
             )
 
+        existing_quizzes = self._quiz_repository.get_quizzes_by_session(
+            session_id=session.id,
+            user_id=user_id,
+        )
+        avoid_questions = tuple(
+            question.question
+            for quiz in existing_quizzes[:5]
+            for question in quiz.questions
+        )
+
         questions = self._llm_provider.generate_questions(
             raw_text=transcript.raw_text,
             question_count=self._question_count,
             difficulty=difficulty,
             question_type=question_type,
+            generation_seed=uuid4().hex,
+            avoid_questions=avoid_questions,
         )
         if len(questions) != self._question_count:
             raise LLMQuizOutputValidationError(

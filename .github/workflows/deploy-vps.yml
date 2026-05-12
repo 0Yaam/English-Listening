@@ -98,6 +98,15 @@ jobs:
               echo "YouTube proxy: not configured. YouTube may block transcript requests from VPS IPs."
             fi
 
+            OPENROUTER_PROXY_URL_VALUE="${{ secrets.OPENROUTER_PROXY_URL }}"
+            OPENROUTER_HTTP_PROXY_URL_VALUE="${{ secrets.OPENROUTER_HTTP_PROXY_URL }}"
+            OPENROUTER_HTTPS_PROXY_URL_VALUE="${{ secrets.OPENROUTER_HTTPS_PROXY_URL }}"
+            if [ -n "$OPENROUTER_PROXY_URL_VALUE" ] || [ -n "$OPENROUTER_HTTP_PROXY_URL_VALUE" ] || [ -n "$OPENROUTER_HTTPS_PROXY_URL_VALUE" ]; then
+              echo "OpenRouter proxy: configured from GitHub Secrets."
+            else
+              echo "OpenRouter proxy: not configured. OpenRouter requests will use the VPS IP."
+            fi
+
             REPO_URL="${{ secrets.DEPLOY_REPO_URL }}"
             if [ -z "$REPO_URL" ]; then
               REPO_URL="https://github.com/${{ github.repository }}.git"
@@ -125,6 +134,9 @@ jobs:
               printf '%s\n' "OPENROUTER_MODEL=$OPENROUTER_MODEL_VALUE"
               printf '%s\n' "OPENROUTER_FALLBACK_MODELS=$OPENROUTER_FALLBACK_MODELS_VALUE"
               printf '%s\n' "OPENROUTER_SITE_URL=$OPENROUTER_SITE_URL_VALUE"
+              printf '%s\n' "OPENROUTER_PROXY_URL=$OPENROUTER_PROXY_URL_VALUE"
+              printf '%s\n' "OPENROUTER_HTTP_PROXY_URL=$OPENROUTER_HTTP_PROXY_URL_VALUE"
+              printf '%s\n' "OPENROUTER_HTTPS_PROXY_URL=$OPENROUTER_HTTPS_PROXY_URL_VALUE"
               printf '%s\n' "OPENROUTER_APP_TITLE=English Listening"
               printf '%s\n' "OPENROUTER_QUIZ_DIFFICULTY=challenging"
               printf '%s\n' "OPENROUTER_TIMEOUT_SECONDS=90"

@@ -94,6 +94,7 @@ LLM_PROVIDER=openrouter
 OPENROUTER_MODEL=google/gemini-2.5-flash-lite
 OPENROUTER_FALLBACK_MODELS=google/gemini-2.5-flash,google/gemini-2.0-flash-001
 OPENROUTER_SITE_URL=http://IP_CUA_VPS:18081
+OPENROUTER_PROXY_URL=http://42.119.112.95:11982
 SEED_DEMO_DATA=true
 ENABLE_DEMO_TRANSCRIPT_FALLBACK=true
 YOUTUBE_PROXY_URL=http://42.119.112.95:11982
@@ -198,6 +199,19 @@ Cach dung dung cho production: cau hinh proxy/residential proxy, vi transcript c
 
 ```text
 YOUTUBE_PROXY_URL=http://username:password@proxy-host:proxy-port
+```
+
+OpenRouter co proxy rieng. Neu VPS bi OpenRouter gioi han theo vung/IP, them GitHub Secret:
+
+```text
+OPENROUTER_PROXY_URL=http://username:password@proxy-host:proxy-port
+```
+
+Neu dung chung proxy voi YouTube:
+
+```text
+OPENROUTER_PROXY_URL=http://42.119.112.95:11982
+YOUTUBE_PROXY_URL=http://42.119.112.95:11982
 ```
 
 Luu y: cau hinh proxy phai dat trong GitHub Secrets, khong sua truc tiep file `.env` tren VPS. Moi lan deploy, GitHub Actions se tao lai `.env` tu secrets va ghi de file cu.

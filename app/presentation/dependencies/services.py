@@ -55,6 +55,8 @@ def get_subtitle_provider() -> SubtitleProvider:
 def get_llm_quiz_provider() -> LLMQuizProvider:
     settings = get_settings()
     configured_provider = settings.llm_provider.strip().lower()
+    openrouter_http_proxy_url = settings.openrouter_http_proxy_url or settings.openrouter_proxy_url
+    openrouter_https_proxy_url = settings.openrouter_https_proxy_url or settings.openrouter_proxy_url
 
     if configured_provider == "openrouter" and settings.openrouter_api_key:
         return OpenRouterLLMQuizAdapter(
@@ -63,6 +65,8 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
             fallback_models=settings.openrouter_fallback_models,
             site_url=settings.openrouter_site_url,
             app_title=settings.openrouter_app_title,
+            proxy_http_url=openrouter_http_proxy_url,
+            proxy_https_url=openrouter_https_proxy_url,
             difficulty=settings.openrouter_quiz_difficulty,
             timeout_seconds=settings.openrouter_timeout_seconds,
             max_tokens=settings.openrouter_max_tokens,
@@ -75,6 +79,8 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
 def get_context_assist_provider() -> ContextAssistProvider | None:
     settings = get_settings()
     configured_provider = settings.llm_provider.strip().lower()
+    openrouter_http_proxy_url = settings.openrouter_http_proxy_url or settings.openrouter_proxy_url
+    openrouter_https_proxy_url = settings.openrouter_https_proxy_url or settings.openrouter_proxy_url
 
     if configured_provider == "openrouter" and settings.openrouter_api_key:
         return OpenRouterContextAssistAdapter(
@@ -83,6 +89,8 @@ def get_context_assist_provider() -> ContextAssistProvider | None:
             fallback_models=settings.openrouter_fallback_models,
             site_url=settings.openrouter_site_url,
             app_title=settings.openrouter_app_title,
+            proxy_http_url=openrouter_http_proxy_url,
+            proxy_https_url=openrouter_https_proxy_url,
             timeout_seconds=settings.openrouter_context_assist_timeout_seconds,
             max_tokens=settings.openrouter_context_assist_max_tokens,
         )
