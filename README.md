@@ -38,7 +38,8 @@ DATABASE_URL=sqlite:///./shadowing_app.db
 SECRET_KEY=change-this-in-production
 LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-openrouter-api-key
-OPENROUTER_MODEL=openai/gpt-4o-mini
+OPENROUTER_MODEL=google/gemini-2.5-flash-lite
+OPENROUTER_FALLBACK_MODELS=google/gemini-2.5-flash,google/gemini-2.0-flash-001
 ```
 
 ## Tests
@@ -100,6 +101,7 @@ DEPLOY_REPO_URL
 APP_PORT
 LLM_PROVIDER
 OPENROUTER_MODEL
+OPENROUTER_FALLBACK_MODELS
 OPENROUTER_SITE_URL
 YOUTUBE_PROXY_URL
 YOUTUBE_HTTP_PROXY_URL

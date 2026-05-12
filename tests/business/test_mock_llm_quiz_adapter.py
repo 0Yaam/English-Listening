@@ -102,3 +102,65 @@ def test_openrouter_llm_quiz_adapter_uses_chat_completions_json_schema(
     assert "Difficulty target: hard" in captured["payload"]["messages"][1]["content"]
     assert "Question focus: vocabulary" in captured["payload"]["messages"][1]["content"]
     assert questions[0].question == "What is the main point?"
+
+
+def test_openrouter_llm_quiz_adapter_falls_back_when_model_is_region_blocked(
+    monkeypatch,
+) -> None:
+    requested_models: list[str] = []
+
+    def fake_post_json(
+        *,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+        timeout_seconds: int,
+    ) -> dict[str, Any]:
+        requested_models.append(str(payload["model"]))
+        if len(requested_models) == 1:
+            from app.data_access.adapters.llm_adapter import LLMQuizProviderError
+
+            raise LLMQuizProviderError(
+                "OpenRouter request failed: HTTP 403: This model is not available in your region.",
+            )
+
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": """
+                        {
+                          "questions": [
+                            {
+                              "question": "What does the transcript suggest?",
+                              "options": {
+                                "A": "Practice can become easier through routine.",
+                                "B": "Practice should be avoided.",
+                                "C": "Only long lessons work.",
+                                "D": "Transcript review is unrelated."
+                              },
+                              "correct_answer": "A",
+                              "explanation": "The transcript supports routine-based practice."
+                            }
+                          ]
+                        }
+                        """,
+                    },
+                },
+            ],
+        }
+
+    monkeypatch.setattr(OpenRouterLLMQuizAdapter, "_post_json", staticmethod(fake_post_json))
+    adapter = OpenRouterLLMQuizAdapter(
+        api_key="test-key",
+        model="openai/gpt-4o-mini",
+        fallback_models=("google/gemini-2.5-flash-lite",),
+    )
+
+    questions = adapter.generate_questions(
+        raw_text="Short routines help learners practice consistently.",
+        question_count=1,
+    )
+
+    assert requested_models == ["openai/gpt-4o-mini", "google/gemini-2.5-flash-lite"]
+    assert questions[0].correct_answer == "A"

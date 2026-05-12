@@ -42,6 +42,7 @@ class OpenRouterContextAssistAdapter:
         *,
         api_key: str,
         model: str,
+        fallback_models: Sequence[str] = (),
         site_url: str | None = None,
         app_title: str | None = None,
         timeout_seconds: int = 12,
@@ -49,6 +50,11 @@ class OpenRouterContextAssistAdapter:
     ) -> None:
         self._api_key = api_key
         self._model = model
+        self._fallback_models = tuple(
+            fallback_model.strip()
+            for fallback_model in fallback_models
+            if fallback_model.strip() and fallback_model.strip() != model
+        )
         self._site_url = site_url
         self._app_title = app_title
         self._timeout_seconds = timeout_seconds
@@ -60,8 +66,73 @@ class OpenRouterContextAssistAdapter:
         segments: Sequence[ContextAssistSegment],
         max_terms_per_segment: int,
     ) -> list[ContextAssistItem]:
-        payload = {
-            "model": self._model,
+        models = (self._model, *self._fallback_models)
+        last_error: ContextAssistProviderError | None = None
+
+        for index, model in enumerate(models):
+            payload = self._build_payload(
+                model=model,
+                segments=segments,
+                max_terms_per_segment=max_terms_per_segment,
+            )
+
+            try:
+                response_payload = self._post_json(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers=self._build_headers(),
+                    payload=payload,
+                    timeout_seconds=self._timeout_seconds,
+                )
+            except ContextAssistProviderError as exc:
+                last_error = exc
+                if index < len(models) - 1 and _is_openrouter_model_availability_error(str(exc)):
+                    continue
+                raise
+
+            try:
+                content = response_payload["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as exc:
+                raise ContextAssistProviderError("OpenRouter did not return context assist.") from exc
+
+            if not isinstance(content, str):
+                raise ContextAssistProviderError("OpenRouter returned unexpected context assist.")
+
+            try:
+                parsed = _ContextAssistPayload.model_validate_json(content)
+            except ValidationError as exc:
+                raise ContextAssistProviderError("OpenRouter returned invalid context assist.") from exc
+
+            return [
+                ContextAssistItem(
+                    segment_index=item.segment_index,
+                    term=item.term,
+                    meaning_en=item.meaning_en,
+                    meaning_vi=item.meaning_vi,
+                    part_of_speech=item.part_of_speech,
+                    pronunciation=item.pronunciation,
+                    chunks=tuple(chunk for chunk in item.chunks if chunk.strip())[:4],
+                    context_sentence=item.context_sentence,
+                    example=item.example,
+                    difficulty=item.difficulty,
+                    source="openrouter",
+                    is_phrase=item.is_phrase,
+                )
+                for item in parsed.items
+            ]
+
+        if last_error:
+            raise last_error
+        raise ContextAssistProviderError("OpenRouter has no configured model.")
+
+    def _build_payload(
+        self,
+        *,
+        model: str,
+        segments: Sequence[ContextAssistSegment],
+        max_terms_per_segment: int,
+    ) -> dict[str, Any]:
+        return {
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -158,44 +229,6 @@ class OpenRouterContextAssistAdapter:
             },
         }
 
-        response_payload = self._post_json(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers=self._build_headers(),
-            payload=payload,
-            timeout_seconds=self._timeout_seconds,
-        )
-
-        try:
-            content = response_payload["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise ContextAssistProviderError("OpenRouter did not return context assist.") from exc
-
-        if not isinstance(content, str):
-            raise ContextAssistProviderError("OpenRouter returned unexpected context assist.")
-
-        try:
-            parsed = _ContextAssistPayload.model_validate_json(content)
-        except ValidationError as exc:
-            raise ContextAssistProviderError("OpenRouter returned invalid context assist.") from exc
-
-        return [
-            ContextAssistItem(
-                segment_index=item.segment_index,
-                term=item.term,
-                meaning_en=item.meaning_en,
-                meaning_vi=item.meaning_vi,
-                part_of_speech=item.part_of_speech,
-                pronunciation=item.pronunciation,
-                chunks=tuple(chunk for chunk in item.chunks if chunk.strip())[:4],
-                context_sentence=item.context_sentence,
-                example=item.example,
-                difficulty=item.difficulty,
-                source="openrouter",
-                is_phrase=item.is_phrase,
-            )
-            for item in parsed.items
-        ]
-
     def _build_headers(self) -> dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -247,3 +280,18 @@ def _read_http_error_message(exc: error.HTTPError) -> str:
             return payload["message"]
 
     return exc.reason
+
+
+def _is_openrouter_model_availability_error(message: str) -> bool:
+    normalized_message = message.lower()
+    return any(
+        marker in normalized_message
+        for marker in (
+            "not available in your region",
+            "model is not available",
+            "no endpoints found",
+            "not a valid model",
+            "model not found",
+            "provider returned error",
+        )
+    )

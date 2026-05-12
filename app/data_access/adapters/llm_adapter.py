@@ -288,6 +288,7 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         *,
         api_key: str,
         model: str,
+        fallback_models: Sequence[str] = (),
         site_url: str | None = None,
         app_title: str | None = None,
         difficulty: str = "challenging",
@@ -296,6 +297,11 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
     ) -> None:
         self._api_key = api_key
         self._model = model
+        self._fallback_models = tuple(
+            fallback_model.strip()
+            for fallback_model in fallback_models
+            if fallback_model.strip() and fallback_model.strip() != model
+        )
         self._site_url = site_url
         self._app_title = app_title
         self._difficulty = difficulty
@@ -311,8 +317,55 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
         question_type: str = "mixed",
     ) -> list[QuizQuestionDraft]:
         resolved_difficulty = difficulty.strip() or self._difficulty
-        payload = {
-            "model": self._model,
+        models = (self._model, *self._fallback_models)
+        last_error: LLMQuizProviderError | None = None
+
+        for index, model in enumerate(models):
+            payload = self._build_payload(
+                model=model,
+                raw_text=raw_text,
+                question_count=question_count,
+                difficulty=resolved_difficulty,
+                question_type=question_type,
+            )
+            try:
+                response_payload = self._post_json(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers=self._build_headers(),
+                    payload=payload,
+                    timeout_seconds=self._timeout_seconds,
+                )
+            except LLMQuizProviderError as exc:
+                last_error = exc
+                if index < len(models) - 1 and _is_openrouter_model_availability_error(str(exc)):
+                    continue
+                raise
+
+            try:
+                content = response_payload["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as exc:
+                raise LLMQuizProviderError("OpenRouter did not return a usable response.") from exc
+
+            if not isinstance(content, str):
+                raise LLMQuizProviderError("OpenRouter returned an unexpected content format.")
+
+            return _parse_generated_questions(content)
+
+        if last_error:
+            raise last_error
+        raise LLMQuizProviderError("OpenRouter has no configured model.")
+
+    def _build_payload(
+        self,
+        *,
+        model: str,
+        raw_text: str,
+        question_count: int,
+        difficulty: str,
+        question_type: str,
+    ) -> dict[str, Any]:
+        return {
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -326,7 +379,7 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                     "content": _build_prompt(
                         raw_text=raw_text,
                         question_count=question_count,
-                        difficulty=resolved_difficulty,
+                        difficulty=difficulty,
                         question_type=question_type,
                     ),
                 },
@@ -349,22 +402,6 @@ class OpenRouterLLMQuizAdapter(LLMQuizProvider):
                 },
             },
         }
-        response_payload = self._post_json(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers=self._build_headers(),
-            payload=payload,
-            timeout_seconds=self._timeout_seconds,
-        )
-
-        try:
-            content = response_payload["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMQuizProviderError("OpenRouter did not return a usable response.") from exc
-
-        if not isinstance(content, str):
-            raise LLMQuizProviderError("OpenRouter returned an unexpected content format.")
-
-        return _parse_generated_questions(content)
 
     def _build_headers(self) -> dict[str, str]:
         headers = {
@@ -603,3 +640,18 @@ def _read_http_error_message(exc: error.HTTPError) -> str:
                 message = message_text
 
     return f"HTTP {exc.code}: {message}"
+
+
+def _is_openrouter_model_availability_error(message: str) -> bool:
+    normalized_message = message.lower()
+    return any(
+        marker in normalized_message
+        for marker in (
+            "not available in your region",
+            "model is not available",
+            "no endpoints found",
+            "not a valid model",
+            "model not found",
+            "provider returned error",
+        )
+    )

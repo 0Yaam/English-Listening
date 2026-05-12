@@ -60,6 +60,7 @@ def get_llm_quiz_provider() -> LLMQuizProvider:
         return OpenRouterLLMQuizAdapter(
             api_key=settings.openrouter_api_key,
             model=settings.openrouter_model,
+            fallback_models=settings.openrouter_fallback_models,
             site_url=settings.openrouter_site_url,
             app_title=settings.openrouter_app_title,
             difficulty=settings.openrouter_quiz_difficulty,
@@ -79,6 +80,7 @@ def get_context_assist_provider() -> ContextAssistProvider | None:
         return OpenRouterContextAssistAdapter(
             api_key=settings.openrouter_api_key,
             model=settings.openrouter_model,
+            fallback_models=settings.openrouter_fallback_models,
             site_url=settings.openrouter_site_url,
             app_title=settings.openrouter_app_title,
             timeout_seconds=settings.openrouter_context_assist_timeout_seconds,

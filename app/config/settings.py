@@ -95,7 +95,10 @@ class Settings:
         default_factory=lambda: os.getenv("OPENROUTER_API_KEY"),
     )
     openrouter_model: str = field(
-        default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+        default_factory=lambda: os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash-lite"),
+    )
+    openrouter_fallback_models: tuple[str, ...] = field(
+        default_factory=lambda: _read_csv_env("OPENROUTER_FALLBACK_MODELS", ""),
     )
     openrouter_site_url: str | None = field(
         default_factory=lambda: os.getenv("OPENROUTER_SITE_URL"),
@@ -146,4 +149,3 @@ class Settings:
 def get_settings() -> Settings:
     _load_env_file()
     return Settings()
-
