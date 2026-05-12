@@ -5,9 +5,11 @@ from dataclasses import field
 from functools import lru_cache
 import os
 from pathlib import Path
+from typing import Literal
 
 
 _ENV_FILE_PATH = Path(__file__).resolve().parents[2] / ".env"
+_DEFAULT_SECRET_KEY = "dev-only-change-me-before-production-shadowing-secret"
 
 
 def _strip_optional_quotes(value: str) -> str:
@@ -41,10 +43,25 @@ def _read_bool_env(name: str, default: bool) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _read_csv_env(name: str, default: str) -> tuple[str, ...]:
+    raw_value = os.getenv(name, default)
+    return tuple(part.strip() for part in raw_value.split(",") if part.strip())
+
+
+def _read_environment() -> Literal["development", "test", "production"]:
+    raw_value = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if raw_value not in {"development", "test", "production"}:
+        raise ValueError("ENVIRONMENT must be one of: development, test, production.")
+    return raw_value  # type: ignore[return-value]
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_name: str = "Shadowing Backend"
     app_version: str = "0.1.0"
+    environment: Literal["development", "test", "production"] = field(
+        default_factory=_read_environment,
+    )
     api_v1_prefix: str = "/api/v1"
     default_subtitle_languages: tuple[str, ...] = ("en",)
     database_url: str = field(
@@ -56,8 +73,14 @@ class Settings:
     secret_key: str = field(
         default_factory=lambda: os.getenv(
             "SECRET_KEY",
-            "dev-only-change-me-before-production-shadowing-secret",
+            _DEFAULT_SECRET_KEY,
         ),
+    )
+    allowed_hosts: tuple[str, ...] = field(
+        default_factory=lambda: _read_csv_env("ALLOWED_HOSTS", "*"),
+    )
+    cors_allowed_origins: tuple[str, ...] = field(
+        default_factory=lambda: _read_csv_env("CORS_ALLOWED_ORIGINS", ""),
     )
     jwt_algorithm: str = field(
         default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256"),
@@ -113,6 +136,10 @@ class Settings:
     enable_demo_transcript_fallback: bool = field(
         default_factory=lambda: _read_bool_env("ENABLE_DEMO_TRANSCRIPT_FALLBACK", False),
     )
+
+    def __post_init__(self) -> None:
+        if self.environment == "production" and self.secret_key == _DEFAULT_SECRET_KEY:
+            raise RuntimeError("SECRET_KEY must be changed when ENVIRONMENT=production.")
 
 
 @lru_cache(maxsize=1)

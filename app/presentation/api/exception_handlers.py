@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.config.settings import get_settings
 from app.business.exceptions.subtitle_errors import (
     SubtitleNotFoundError,
     SubtitleProviderError,
@@ -91,11 +92,13 @@ def register_exception_handlers(application: FastAPI) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
+        settings = get_settings()
+        message = str(exc) if settings.environment != "production" else "Internal server error."
         return _build_error_response(
             request=request,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             error_code="internal_server_error",
-            message=str(exc),
+            message=message,
         )
 
 

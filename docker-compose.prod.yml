@@ -9,6 +9,7 @@ services:
     env_file:
       - .env
     environment:
+      ENVIRONMENT: production
       DATABASE_URL: sqlite:////data/shadowing_app.db
       AUTO_CREATE_TABLES: "true"
     ports:

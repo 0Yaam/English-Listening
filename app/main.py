@@ -4,6 +4,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config.settings import get_settings
 from app.data_access.database import init_db
@@ -32,6 +34,21 @@ def create_application() -> FastAPI:
     if settings.auto_create_tables:
         init_db()
     register_exception_handlers(application)
+    if settings.allowed_hosts:
+        application.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
+    if settings.cors_allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.cors_allowed_origins),
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    @application.get("/health", include_in_schema=False)
+    async def health_check() -> dict[str, str]:
+        return {"status": "ok"}
+
     application.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
     application.include_router(web_router)
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
